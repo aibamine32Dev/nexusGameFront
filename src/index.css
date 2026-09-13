@@ -1481,3 +1481,1169 @@ img {
     gap: 45px;
   }
 }
+
+
+/* =========================================================
+   ADMIN PANEL
+   ========================================================= */
+
+.admin-layout {
+  min-height: 100vh;
+  background: #050505;
+  color: #ffffff;
+  display: flex;
+}
+
+/* =========================
+   SIDEBAR
+   ========================= */
+
+.admin-sidebar {
+  width: 260px;
+  min-height: 100vh;
+  background: #090909;
+  border-right: 1px solid #252525;
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 100;
+}
+
+.admin-brand {
+  height: 85px;
+  padding: 0 25px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid #252525;
+}
+
+.admin-brand svg {
+  color: #e10600;
+}
+
+.admin-brand div {
+  display: flex;
+  flex-direction: column;
+  line-height: 0.85;
+}
+
+.admin-brand span {
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: 25px;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+
+.admin-brand strong {
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: 14px;
+  color: #e10600;
+  letter-spacing: 3px;
+}
+
+.admin-label {
+  padding: 30px 25px 15px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #666;
+  letter-spacing: 2px;
+}
+
+.admin-nav {
+  display: flex;
+  flex-direction: column;
+  padding: 0 12px;
+  gap: 5px;
+}
+
+.admin-nav a {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 15px;
+  color: #999;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  border-left: 3px solid transparent;
+  transition: 0.2s ease;
+}
+
+.admin-nav a:hover {
+  background: #111;
+  color: #fff;
+}
+
+.admin-nav a.active {
+  background: #161616;
+  color: #fff;
+  border-left-color: #e10600;
+}
+
+.admin-nav a.active svg {
+  color: #e10600;
+}
+
+.admin-sidebar-bottom {
+  margin-top: auto;
+  padding: 15px 12px 25px;
+  border-top: 1px solid #252525;
+}
+
+.admin-sidebar-bottom button {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: #888;
+  padding: 13px 15px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: left;
+  transition: 0.2s ease;
+}
+
+.admin-sidebar-bottom button:hover {
+  color: #fff;
+  background: #111;
+}
+
+.admin-sidebar-bottom button:last-child:hover {
+  color: #e10600;
+}
+
+
+/* =========================
+   ADMIN MAIN
+   ========================= */
+
+.admin-main {
+  margin-left: 260px;
+  width: calc(100% - 260px);
+  min-height: 100vh;
+  padding: 45px;
+}
+
+.admin-page {
+  max-width: 1500px;
+  margin: 0 auto;
+}
+
+
+/* =========================
+   ADMIN HEADER
+   ========================= */
+
+.admin-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 45px;
+}
+
+.admin-page-header > div:first-child > span {
+  color: #e10600;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 3px;
+}
+
+.admin-page-header h1 {
+  margin: 10px 0 0;
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: clamp(45px, 5vw, 75px);
+  line-height: 0.85;
+  font-weight: 800;
+  letter-spacing: -1px;
+}
+
+.admin-page-header h1 strong {
+  color: #e10600;
+}
+
+.admin-status {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #888;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.admin-status span {
+  width: 8px;
+  height: 8px;
+  background: #e10600;
+  border-radius: 50%;
+  box-shadow: 0 0 10px rgba(225, 6, 0, 0.8);
+}
+
+
+/* =========================
+   STAT CARDS
+   ========================= */
+
+.admin-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+  margin-bottom: 30px;
+}
+
+.admin-stat-card {
+  background: #0d0d0d;
+  border: 1px solid #252525;
+  padding: 25px;
+  min-height: 150px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: 0.2s ease;
+}
+
+.admin-stat-card:hover {
+  border-color: #444;
+  transform: translateY(-2px);
+}
+
+.admin-stat-card svg {
+  color: #e10600;
+}
+
+.admin-stat-card span {
+  margin-top: 20px;
+  color: #777;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+}
+
+.admin-stat-card strong {
+  margin-top: 5px;
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: 38px;
+  line-height: 1;
+}
+
+
+/* =========================
+   ADMIN PANEL
+   ========================= */
+
+.admin-panel {
+  background: #0b0b0b;
+  border: 1px solid #252525;
+}
+
+.admin-panel-header {
+  min-height: 70px;
+  padding: 0 25px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #252525;
+}
+
+.admin-panel-header h2 {
+  margin: 0;
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: 20px;
+  letter-spacing: 1px;
+}
+
+.admin-panel-header > span {
+  color: #777;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+
+/* =========================
+   EMPTY STATE
+   ========================= */
+
+.admin-empty {
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #555;
+  gap: 15px;
+}
+
+.admin-empty p {
+  margin: 0;
+  color: #777;
+}
+
+
+/* =========================
+   TABLE
+   ========================= */
+
+.admin-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 800px;
+}
+
+.admin-table th {
+  padding: 17px 20px;
+  background: #101010;
+  color: #666;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  text-align: left;
+  border-bottom: 1px solid #252525;
+}
+
+.admin-table td {
+  padding: 18px 20px;
+  color: #ccc;
+  font-size: 12px;
+  border-bottom: 1px solid #1c1c1c;
+}
+
+.admin-table tbody tr {
+  transition: 0.2s ease;
+}
+
+.admin-table tbody tr:hover {
+  background: #111;
+}
+
+.admin-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.admin-table td:first-child {
+  color: #e10600;
+  font-weight: 800;
+}
+
+
+/* =========================
+   DELETE BUTTON
+   ========================= */
+
+.delete-button {
+  width: 34px;
+  height: 34px;
+  border: 1px solid #333;
+  background: transparent;
+  color: #777;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.delete-button:hover {
+  color: #fff;
+  background: #e10600;
+  border-color: #e10600;
+}
+
+
+/* =========================
+   ADMIN LOGIN
+   ========================= */
+
+.admin-login-page {
+  min-height: 100vh;
+  background:
+    linear-gradient(rgba(0, 0, 0, 0.86), rgba(0, 0, 0, 0.96)),
+    radial-gradient(circle at center, #280000 0%, #050505 55%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 25px;
+}
+
+.admin-login-box {
+  width: 100%;
+  max-width: 460px;
+  background: #0b0b0b;
+  border: 1px solid #292929;
+  padding: 50px;
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.6);
+}
+
+.admin-login-logo {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  margin-bottom: 60px;
+}
+
+.admin-login-logo svg {
+  color: #e10600;
+}
+
+.admin-login-logo div {
+  display: flex;
+  flex-direction: column;
+  line-height: 0.8;
+}
+
+.admin-login-logo span {
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+
+.admin-login-logo strong {
+  color: #e10600;
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: 14px;
+  letter-spacing: 3px;
+}
+
+.admin-login-title span {
+  color: #e10600;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 3px;
+}
+
+.admin-login-title h1 {
+  margin: 10px 0 35px;
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: 55px;
+  line-height: 0.85;
+}
+
+.admin-login-title h1 strong {
+  color: #e10600;
+}
+
+.admin-login-box form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.admin-input {
+  height: 55px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 17px;
+  background: #050505;
+  border: 1px solid #2a2a2a;
+}
+
+.admin-input:focus-within {
+  border-color: #e10600;
+}
+
+.admin-input svg {
+  color: #666;
+  flex-shrink: 0;
+}
+
+.admin-input input {
+  width: 100%;
+  height: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: #fff;
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.admin-input input::placeholder {
+  color: #555;
+}
+
+.admin-error {
+  margin: 0;
+  padding: 12px;
+  background: rgba(225, 6, 0, 0.08);
+  border-left: 3px solid #e10600;
+  color: #e10600;
+  font-size: 12px;
+}
+
+.admin-login-box .primary-button {
+  margin-top: 5px;
+}
+
+.admin-back {
+  width: 100%;
+  margin-top: 25px;
+  padding: 12px;
+  background: transparent;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.admin-back:hover {
+  color: #fff;
+}
+
+
+/* =========================
+   ADMIN RESPONSIVE
+   ========================= */
+
+@media (max-width: 1100px) {
+
+  .admin-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+}
+
+@media (max-width: 800px) {
+
+  .admin-sidebar {
+    width: 75px;
+  }
+
+  .admin-brand {
+    justify-content: center;
+    padding: 0;
+  }
+
+  .admin-brand div,
+  .admin-label,
+  .admin-nav a span,
+  .admin-sidebar-bottom button span {
+    display: none;
+  }
+
+  .admin-nav a {
+    justify-content: center;
+    padding: 16px 5px;
+  }
+
+  .admin-sidebar-bottom button {
+    justify-content: center;
+    padding: 14px 5px;
+  }
+
+  .admin-main {
+    margin-left: 75px;
+    width: calc(100% - 75px);
+    padding: 30px 20px;
+  }
+
+}
+
+@media (max-width: 600px) {
+
+  .admin-main {
+    padding: 25px 15px;
+  }
+
+  .admin-page-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .admin-page-header h1 {
+    font-size: 48px;
+  }
+
+  .admin-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-login-box {
+    padding: 35px 25px;
+  }
+
+  .admin-login-title h1 {
+    font-size: 48px;
+  }
+
+}
+
+
+
+/* =========================================================
+   ADMIN GAME MANAGEMENT
+   ========================================================= */
+
+.admin-primary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+
+  padding: 14px 22px;
+
+  background: #e10600;
+  border: 1px solid #e10600;
+
+  color: #fff;
+  text-decoration: none;
+
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+
+  cursor: pointer;
+
+  transition: 0.2s ease;
+}
+
+.admin-primary-button:hover {
+  background: #b80500;
+  border-color: #b80500;
+  transform: translateY(-1px);
+}
+
+.admin-back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+
+  color: #777;
+  text-decoration: none;
+
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+
+  transition: 0.2s ease;
+}
+
+.admin-back-button:hover {
+  color: #fff;
+}
+
+
+/* =========================================================
+   GAME GRID
+   ========================================================= */
+
+.admin-games-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.admin-game-card {
+  background: #0b0b0b;
+  border: 1px solid #252525;
+
+  overflow: hidden;
+
+  transition: 0.25s ease;
+}
+
+.admin-game-card:hover {
+  border-color: #444;
+  transform: translateY(-3px);
+}
+
+
+/* =========================================================
+   GAME IMAGE
+   ========================================================= */
+
+.admin-game-image {
+  height: 210px;
+  position: relative;
+  overflow: hidden;
+  background: #111;
+}
+
+.admin-game-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+
+  transition: transform 0.4s ease;
+}
+
+.admin-game-card:hover .admin-game-image img {
+  transform: scale(1.04);
+}
+
+.admin-game-status {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+
+  display: flex;
+  align-items: center;
+  gap: 5px;
+
+  padding: 7px 10px;
+
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.admin-game-status.available {
+  background: #e10600;
+  color: #fff;
+}
+
+.admin-game-status.unavailable {
+  background: #222;
+  color: #888;
+}
+
+
+/* =========================================================
+   GAME CONTENT
+   ========================================================= */
+
+.admin-game-content {
+  padding: 22px;
+}
+
+.admin-game-category {
+  color: #e10600;
+
+  font-size: 9px;
+  font-weight: 800;
+
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.admin-game-content h2 {
+  margin: 8px 0 10px;
+
+  font-family: "Barlow Condensed", sans-serif;
+
+  font-size: 28px;
+  line-height: 1;
+
+  letter-spacing: 0.5px;
+}
+
+.admin-game-content p {
+  min-height: 50px;
+
+  margin: 0 0 20px;
+
+  color: #777;
+
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.admin-game-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  padding: 15px 0;
+
+  border-top: 1px solid #202020;
+  border-bottom: 1px solid #202020;
+}
+
+.admin-game-info span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+
+  color: #888;
+
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.admin-game-info span svg {
+  color: #e10600;
+}
+
+.admin-game-info strong {
+  color: #fff;
+
+  font-family: "Barlow Condensed", sans-serif;
+
+  font-size: 20px;
+}
+
+
+/* =========================================================
+   GAME ACTIONS
+   ========================================================= */
+
+.admin-game-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+
+  margin-top: 15px;
+}
+
+.admin-action-button {
+  min-height: 38px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+
+  padding: 8px;
+
+  background: #151515;
+  border: 1px solid #292929;
+
+  color: #999;
+
+  text-decoration: none;
+
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+
+  cursor: pointer;
+
+  transition: 0.2s ease;
+}
+
+.admin-action-button:hover {
+  background: #222;
+  border-color: #555;
+  color: #fff;
+}
+
+.admin-action-button.danger {
+  grid-column: 1 / -1;
+}
+
+.admin-action-button.danger:hover {
+  background: #e10600;
+  border-color: #e10600;
+  color: #fff;
+}
+
+
+/* =========================================================
+   ADMIN FORM
+   ========================================================= */
+
+.admin-form-panel {
+  background: #0b0b0b;
+  border: 1px solid #252525;
+}
+
+.admin-form-title {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+
+  padding: 25px;
+
+  border-bottom: 1px solid #252525;
+}
+
+.admin-form-title > svg {
+  color: #e10600;
+}
+
+.admin-form-title div {
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-form-title span {
+  color: #e10600;
+
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+
+.admin-form-title h2 {
+  margin: 4px 0 0;
+
+  font-family: "Barlow Condensed", sans-serif;
+
+  font-size: 24px;
+  letter-spacing: 0.5px;
+}
+
+.admin-game-form {
+  padding: 30px;
+}
+
+.admin-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 22px;
+}
+
+.admin-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+.admin-form-group label {
+  color: #777;
+
+  font-size: 9px;
+  font-weight: 800;
+
+  letter-spacing: 1.5px;
+}
+
+.admin-form-group input,
+.admin-form-group select,
+.admin-form-group textarea {
+  width: 100%;
+
+  box-sizing: border-box;
+
+  background: #050505;
+
+  border: 1px solid #292929;
+
+  color: #fff;
+
+  outline: none;
+
+  font-family: inherit;
+  font-size: 13px;
+
+  transition: 0.2s ease;
+}
+
+.admin-form-group input,
+.admin-form-group select {
+  height: 50px;
+  padding: 0 15px;
+}
+
+.admin-form-group textarea {
+  padding: 15px;
+  resize: vertical;
+  min-height: 120px;
+}
+
+.admin-form-group input:focus,
+.admin-form-group select:focus,
+.admin-form-group textarea:focus {
+  border-color: #e10600;
+}
+
+.admin-form-group input::placeholder,
+.admin-form-group textarea::placeholder {
+  color: #444;
+}
+
+.admin-form-group select option {
+  background: #111;
+  color: #fff;
+}
+
+.admin-form-group small {
+  color: #555;
+  font-size: 10px;
+}
+
+
+/* =========================================================
+   CHECKBOX
+   ========================================================= */
+
+.admin-checkbox {
+  grid-column: 1 / -1;
+
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  padding: 15px;
+
+  background: #101010;
+  border: 1px solid #242424;
+
+  color: #999;
+
+  font-size: 11px;
+  font-weight: 700;
+
+  cursor: pointer;
+}
+
+.admin-checkbox input {
+  width: 17px;
+  height: 17px;
+
+  accent-color: #e10600;
+
+  cursor: pointer;
+}
+
+
+/* =========================================================
+   FORM FOOTER
+   ========================================================= */
+
+.admin-form-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+
+  margin-top: 30px;
+  padding-top: 25px;
+
+  border-top: 1px solid #252525;
+}
+
+.admin-cancel-button {
+  min-height: 45px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0 20px;
+
+  background: transparent;
+
+  border: 1px solid #292929;
+
+  color: #777;
+
+  text-decoration: none;
+
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.admin-cancel-button:hover {
+  color: #fff;
+  border-color: #555;
+}
+
+
+/* =========================================================
+   EMPTY GAME STATE
+   ========================================================= */
+
+.admin-games-empty {
+  grid-column: 1 / -1;
+
+  min-height: 450px;
+
+  background: #0b0b0b;
+  border: 1px solid #252525;
+}
+
+
+/* =========================================================
+   LOGIN FIX
+   ========================================================= */
+
+.admin-login-box .full {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 1200px) {
+
+  .admin-games-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+}
+
+@media (max-width: 800px) {
+
+  .admin-games-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-form-group.full-width {
+    grid-column: auto;
+  }
+
+  .admin-checkbox {
+    grid-column: auto;
+  }
+
+  .admin-page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 20px;
+  }
+
+}
+
+@media (max-width: 600px) {
+
+  .admin-game-image {
+    height: 190px;
+  }
+
+  .admin-game-form {
+    padding: 20px;
+  }
+
+  .admin-form-title {
+    padding: 20px;
+  }
+
+  .admin-form-footer {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .admin-primary-button,
+  .admin-cancel-button {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+}
+
+
+
