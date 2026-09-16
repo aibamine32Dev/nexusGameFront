@@ -1,18 +1,61 @@
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Check, Monitor, Gamepad2 } from "lucide-react";
-import { games } from "../../data/games";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  Monitor,
+  Gamepad2,
+} from "lucide-react";
 
 function GameDetails() {
   const { id } = useParams();
 
-  const game = games.find(
-    (item) => item.id === Number(id)
-  );
+  const [game, setGame] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  if (!game) {
+  const loadGame = async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const response = await fetch(
+        `https://nexusgameback.onrender.com/api/games/${id}/`
+      );
+
+      if (!response.ok) {
+        throw new Error("Game not found");
+      }
+
+      const data = await response.json();
+
+      setGame(data);
+    } catch (err) {
+      console.error("Game API error:", err);
+      setError("Unable to load game.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadGame();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <section className="page-section">
+        <h1>LOADING GAME...</h1>
+      </section>
+    );
+  }
+
+  if (error || !game) {
     return (
       <section className="page-section">
         <h1>GAME NOT FOUND</h1>
+
         <Link to="/games" className="primary-button">
           BACK TO GAMES
         </Link>
@@ -63,7 +106,7 @@ function GameDetails() {
             <span>STATUS</span>
             <strong className="status">
               <Check size={16} />
-              AVAILABLE
+              {game.available ? "AVAILABLE" : "UNAVAILABLE"}
             </strong>
           </div>
         </div>
@@ -74,13 +117,15 @@ function GameDetails() {
           ))}
         </div>
 
-        <Link
-          to={`/reservation?game=${game.id}`}
-          className="primary-button"
-        >
-          RESERVE THIS GAME
-          <ArrowRight size={20} />
-        </Link>
+        {game.available && (
+          <Link
+            to={`/reservation?game=${game.id}`}
+            className="primary-button"
+          >
+            RESERVE THIS GAME
+            <ArrowRight size={20} />
+          </Link>
+        )}
       </div>
     </section>
   );

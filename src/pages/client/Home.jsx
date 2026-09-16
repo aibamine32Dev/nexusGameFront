@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
@@ -6,10 +7,41 @@ import {
   Users,
   Gamepad2,
 } from "lucide-react";
-import { games } from "../../data/games";
 import GameCard from "../../components/GameCard";
 
 function Home() {
+  const [games, setGames] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const loadGames = async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const response = await fetch(
+        "https://nexusgameback.onrender.com/api/games/"
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to load games");
+      }
+
+      const data = await response.json();
+
+      setGames(data);
+    } catch (err) {
+      console.error("Games API error:", err);
+      setError("Unable to load games.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadGames();
+  }, []);
+
   return (
     <>
       <section className="hero">
@@ -57,6 +89,7 @@ function Home() {
       <section className="features section">
         <div className="section-heading">
           <span>WHY NEXUS</span>
+
           <h2>
             BUILT FOR
             <br />
@@ -129,11 +162,35 @@ function Home() {
           </Link>
         </div>
 
-        <div className="games-grid">
-          {games.slice(0, 3).map((game) => (
-            <GameCard key={game.id} game={game} />
-          ))}
-        </div>
+        {loading && (
+          <div className="games-loading">
+            <p>LOADING GAMES...</p>
+          </div>
+        )}
+
+        {!loading && error && (
+          <div className="games-error">
+            <p>{error}</p>
+
+            <button
+              className="primary-button"
+              onClick={loadGames}
+            >
+              TRY AGAIN
+            </button>
+          </div>
+        )}
+
+        {!loading && !error && (
+          <div className="games-grid">
+            {games.slice(0, 3).map((game) => (
+              <GameCard
+                key={game.id}
+                game={game}
+              />
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="cta-section">

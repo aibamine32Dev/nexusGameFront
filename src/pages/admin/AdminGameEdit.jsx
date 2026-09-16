@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Link,
   useNavigate,
@@ -12,64 +11,83 @@ import {
   Gamepad2,
 } from "lucide-react";
 
-import { games as initialGames } from "../../data/games";
-
 function AdminGameEdit() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const gameId = Number(id);
+  const API_URL = "https://nexusgameback.onrender.com/api/games/";
 
-  const savedGames = JSON.parse(
-    localStorage.getItem("nexusGames") ||
-      "null"
-  );
+  const [game, setGame] = useState(null);
+  const [form, setForm] = useState(null);
 
-  const currentGames =
-    savedGames || initialGames;
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
-  const game = currentGames.find(
-    (item) => item.id === gameId
-  );
+  // ================================
+  // LOAD GAME FROM DJANGO
+  // ================================
 
-  const [form, setForm] = useState(
-    game
-      ? {
-          name: game.name,
-          category: game.category,
-          platform: game.platform,
-          price: game.price,
-          image: game.image,
-          description: game.description,
-          tags: game.tags.join(", "),
-          available: game.available,
+  useEffect(() => {
+    const loadGame = async () => {
+      try {
+        setLoading(true);
+        setError("");
+
+        const response = await fetch(
+          `${API_URL}${id}/`
+        );
+
+        if (!response.ok) {
+          throw new Error("Game not found");
         }
-      : null
-  );
 
-  if (!game || !form) {
-    return (
-      <section className="admin-page">
+        const data = await response.json();
 
-        <div className="admin-empty">
-          <Gamepad2 size={50} />
+        setGame(data);
 
-          <h2>GAME NOT FOUND</h2>
+        setForm({
+          name: data.name,
+          category: data.category,
+          platform: data.platform,
+          price: data.price,
+          image: data.image || "",
+          description: data.description || "",
+          tags: Array.isArray(data.tags)
+            ? data.tags.join(", ")
+            : "",
+          available: data.available,
+        });
+      } catch (err) {
+        console.error(
+          "Load game error:",
+          err
+        );
 
-          <Link
-            to="/admin/games"
-            className="admin-primary-button"
-          >
-            BACK TO GAMES
-          </Link>
-        </div>
+        setError(
+          "Unable to load the game."
+        );
+        setGame(null);
+        setForm(null);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-      </section>
-    );
-  }
+    loadGame();
+  }, [id]);
+
+  // ================================
+  // HANDLE INPUT CHANGES
+  // ================================
 
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
+    const {
+      name,
+      value,
+      type,
+      checked,
+    } = e.target;
 
     setForm((previous) => ({
       ...previous,
@@ -80,7 +98,11 @@ function AdminGameEdit() {
     }));
   };
 
-  const handleSubmit = (e) => {
+  // ================================
+  // UPDATE GAME
+  // ================================
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (
@@ -89,39 +111,146 @@ function AdminGameEdit() {
       !form.price ||
       !form.description
     ) {
-      alert("Please complete all required fields.");
+      alert(
+        "Please complete all required fields."
+      );
       return;
     }
 
-    const updatedGame = {
-      id: game.id,
-      name: form.name,
-      category: form.category,
-      platform: form.platform,
-      price: Number(form.price),
-      image: form.image,
-      description: form.description,
-      tags: form.tags
-        .split(",")
-        .map((tag) => tag.trim())
-        .filter(Boolean),
-      available: form.available,
-    };
+    try {
+      setSaving(true);
 
-    const updatedGames = currentGames.map(
-      (item) =>
-        item.id === game.id
-          ? updatedGame
-          : item
-    );
+      const updatedGame = {
+        name: form.name,
+        category: form.category,
+        platform: form.platform,
+        price: Number(form.price),
+        image: form.image,
+        description: form.description,
+        tags: form.tags
+          .split(",")
+          .map((tag) => tag.trim())
+          .filter(Boolean),
+        available: form.available,
+      };
 
-    localStorage.setItem(
-      "nexusGames",
-      JSON.stringify(updatedGames)
-    );
+      const response = await fetch(
+        `${API_URL}${id}/`,
+        {
+          method: "PATCH",
 
-    navigate("/admin/games");
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+
+          body: JSON.stringify(
+            updatedGame
+          ),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData =
+          await response.json();
+
+        console.error(
+          "Update game API error:",
+          errorData
+        );
+
+        throw new Error(
+          "Failed to update game"
+        );
+      }
+
+      const data =
+        await response.json();
+
+      console.log(
+        "Game updated:",
+        data
+      );
+
+      navigate("/admin/games");
+    } catch (err) {
+      console.error(
+        "Update game error:",
+        err
+      );
+
+      alert(
+        "Unable to update the game. Please check the server."
+      );
+    } finally {
+      setSaving(false);
+    }
   };
+
+  // ================================
+  // LOADING
+  // ================================
+
+  if (loading) {
+    return (
+      <section className="admin-page">
+
+        <div className="admin-empty">
+
+          <Gamepad2 size={50} />
+
+          <h2>
+            LOADING GAME
+          </h2>
+
+          <p>
+            Loading game information
+            from the server...
+          </p>
+
+        </div>
+
+      </section>
+    );
+  }
+
+  // ================================
+  // ERROR / GAME NOT FOUND
+  // ================================
+
+  if (error || !game || !form) {
+    return (
+      <section className="admin-page">
+
+        <div className="admin-empty">
+
+          <Gamepad2 size={50} />
+
+          <h2>
+            GAME NOT FOUND
+          </h2>
+
+          <p>
+            {error ||
+              "The requested game does not exist."}
+          </p>
+
+          <Link
+            to="/admin/games"
+            className="admin-primary-button"
+          >
+            BACK TO GAMES
+          </Link>
+
+        </div>
+
+      </section>
+    );
+  }
+
+  // ================================
+  // PAGE
+  // ================================
 
   return (
     <section className="admin-page">
@@ -129,13 +258,17 @@ function AdminGameEdit() {
       <div className="admin-page-header">
 
         <div>
-          <span>GAME MANAGEMENT</span>
+
+          <span>
+            GAME MANAGEMENT
+          </span>
 
           <h1>
             EDIT
             <br />
             <strong>GAME.</strong>
           </h1>
+
         </div>
 
         <Link
@@ -155,8 +288,15 @@ function AdminGameEdit() {
           <Gamepad2 size={30} />
 
           <div>
-            <span>EDITING</span>
-            <h2>{game.name}</h2>
+
+            <span>
+              EDITING
+            </span>
+
+            <h2>
+              {game.name}
+            </h2>
+
           </div>
 
         </div>
@@ -169,7 +309,10 @@ function AdminGameEdit() {
           <div className="admin-form-grid">
 
             <div className="admin-form-group">
-              <label>GAME NAME *</label>
+
+              <label>
+                GAME NAME *
+              </label>
 
               <input
                 type="text"
@@ -177,10 +320,14 @@ function AdminGameEdit() {
                 value={form.name}
                 onChange={handleChange}
               />
+
             </div>
 
             <div className="admin-form-group">
-              <label>CATEGORY *</label>
+
+              <label>
+                CATEGORY *
+              </label>
 
               <input
                 type="text"
@@ -188,23 +335,37 @@ function AdminGameEdit() {
                 value={form.category}
                 onChange={handleChange}
               />
+
             </div>
 
             <div className="admin-form-group">
-              <label>PLATFORM *</label>
+
+              <label>
+                PLATFORM *
+              </label>
 
               <select
                 name="platform"
                 value={form.platform}
                 onChange={handleChange}
               >
-                <option value="PC">PC</option>
-                <option value="PS5">PS5</option>
+                <option value="PC">
+                  PC
+                </option>
+
+                <option value="PS5">
+                  PS5
+                </option>
+
               </select>
+
             </div>
 
             <div className="admin-form-group">
-              <label>PRICE / HOUR *</label>
+
+              <label>
+                PRICE / HOUR *
+              </label>
 
               <input
                 type="number"
@@ -213,10 +374,14 @@ function AdminGameEdit() {
                 value={form.price}
                 onChange={handleChange}
               />
+
             </div>
 
             <div className="admin-form-group full-width">
-              <label>IMAGE URL</label>
+
+              <label>
+                IMAGE URL
+              </label>
 
               <input
                 type="url"
@@ -224,10 +389,14 @@ function AdminGameEdit() {
                 value={form.image}
                 onChange={handleChange}
               />
+
             </div>
 
             <div className="admin-form-group full-width">
-              <label>DESCRIPTION *</label>
+
+              <label>
+                DESCRIPTION *
+              </label>
 
               <textarea
                 name="description"
@@ -235,10 +404,14 @@ function AdminGameEdit() {
                 value={form.description}
                 onChange={handleChange}
               />
+
             </div>
 
             <div className="admin-form-group full-width">
-              <label>TAGS</label>
+
+              <label>
+                TAGS
+              </label>
 
               <input
                 type="text"
@@ -250,6 +423,7 @@ function AdminGameEdit() {
               <small>
                 Separate tags using commas.
               </small>
+
             </div>
 
             <label className="admin-checkbox">
@@ -281,9 +455,15 @@ function AdminGameEdit() {
             <button
               type="submit"
               className="admin-primary-button"
+              disabled={saving}
             >
+
               <Save size={18} />
-              UPDATE GAME
+
+              {saving
+                ? "UPDATING..."
+                : "UPDATE GAME"}
+
             </button>
 
           </div>
@@ -297,4 +477,3 @@ function AdminGameEdit() {
 }
 
 export default AdminGameEdit;
-

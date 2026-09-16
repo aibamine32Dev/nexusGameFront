@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -6,8 +5,6 @@ import {
   Save,
   Gamepad2,
 } from "lucide-react";
-
-import { games as initialGames } from "../../data/games";
 
 function AdminGameNew() {
   const navigate = useNavigate();
@@ -23,6 +20,8 @@ function AdminGameNew() {
     available: true,
   });
 
+  const [loading, setLoading] = useState(false);
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
 
@@ -35,7 +34,7 @@ function AdminGameNew() {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (
@@ -48,42 +47,64 @@ function AdminGameNew() {
       return;
     }
 
-    const savedGames = JSON.parse(
-      localStorage.getItem("nexusGames") ||
-        "null"
-    );
+    try {
+      setLoading(true);
 
-    const currentGames =
-      savedGames || initialGames;
+      const newGame = {
+        name: form.name,
+        category: form.category,
+        platform: form.platform,
+        price: Number(form.price),
+        image:
+          form.image ||
+          "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80",
+        description: form.description,
+        tags: form.tags
+          .split(",")
+          .map((tag) => tag.trim())
+          .filter(Boolean),
+        available: form.available,
+      };
 
-    const newGame = {
-      id: Date.now(),
-      name: form.name,
-      category: form.category,
-      platform: form.platform,
-      price: Number(form.price),
-      image:
-        form.image ||
-        "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80",
-      description: form.description,
-      tags: form.tags
-        .split(",")
-        .map((tag) => tag.trim())
-        .filter(Boolean),
-      available: form.available,
-    };
+      const response = await fetch(
+        "https://nexusgameback.onrender.com/api/games/",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(newGame),
+        }
+      );
 
-    const updatedGames = [
-      ...currentGames,
-      newGame,
-    ];
+      if (!response.ok) {
+        const errorData = await response.json();
 
-    localStorage.setItem(
-      "nexusGames",
-      JSON.stringify(updatedGames)
-    );
+        console.error(
+          "Create game error:",
+          errorData
+        );
 
-    navigate("/admin/games");
+        throw new Error("Failed to create game");
+      }
+
+      const createdGame = await response.json();
+
+      console.log(
+        "Game created:",
+        createdGame
+      );
+
+      navigate("/admin/games");
+    } catch (err) {
+      console.error("Create game error:", err);
+
+      alert(
+        "Unable to create the game. Please check the server."
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -248,9 +269,13 @@ function AdminGameNew() {
             <button
               type="submit"
               className="admin-primary-button"
+              disabled={loading}
             >
               <Save size={18} />
-              SAVE GAME
+
+              {loading
+                ? "SAVING..."
+                : "SAVE GAME"}
             </button>
 
           </div>
@@ -264,4 +289,3 @@ function AdminGameNew() {
 }
 
 export default AdminGameNew;
-
