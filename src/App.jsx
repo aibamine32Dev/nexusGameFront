@@ -21,7 +21,7 @@ import AdminReservations from "./pages/admin/AdminReservations";
 import AdminGames from "./pages/admin/AdminGames";
 import AdminGameNew from "./pages/admin/AdminGameNew";
 import AdminGameEdit from "./pages/admin/AdminGameEdit";
-import AdminMatches  from "./pages/admin/adminmatches";
+import AdminMatches from "./pages/admin/AdminMatchescopy";
 
 function App() {
   return (
