@@ -20,13 +20,13 @@ function ReservationSuccess() {
     useState(null);
 
   const [loading, setLoading] =
-    useState(true);
+    useState(true);s
 
   const [error, setError] =
     useState("");
 
   const API_URL =
-    "https://nexusgameback.onrender.com/api/reservations/";
+    "https://nexusgameback.onrender.com/api/games/";
 
   useEffect(() => {
     const loadReservation =

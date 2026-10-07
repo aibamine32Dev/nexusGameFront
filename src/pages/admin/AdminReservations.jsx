@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   Trash2,
@@ -6,46 +6,56 @@ import {
   Check,
   X,
   CircleCheck,
+  Monitor,
+  Clock,
+  User,
+  Phone,
+  Users,
+  RefreshCw,
 } from "lucide-react";
+
 
 function AdminReservations() {
   const API_URL =
     "https://nexusgameback.onrender.com/api/reservations/";
 
-  const [reservations, setReservations] =
-    useState([]);
-
-  const [loading, setLoading] =
-    useState(true);
-
-  const [error, setError] =
-    useState("");
-
-  const [updatingId, setUpdatingId] =
-    useState(null);
+  const [reservations, setReservations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   /*
-   * Load reservations from Django
+   * We store the group currently being modified.
+   *
+   * Example:
+   * "GRP-A12B34CD"
    */
+  const [updatingGroup, setUpdatingGroup] = useState(null);
+
+
+  /*
+   * =========================================================
+   * LOAD RESERVATIONS
+   * =========================================================
+   */
+
   const loadReservations = async () => {
     try {
       setLoading(true);
       setError("");
 
-      const response = await fetch(
-        API_URL
-      );
+      const response = await fetch(API_URL);
 
       if (!response.ok) {
         throw new Error(
-          "Unable to load reservations"
+          "Unable to load reservations."
         );
       }
 
-      const data =
-        await response.json();
+      const data = await response.json();
 
-      setReservations(data);
+      setReservations(
+        Array.isArray(data) ? data : []
+      );
 
     } catch (err) {
       console.error(
@@ -56,148 +66,219 @@ function AdminReservations() {
       setError(
         "Unable to load reservations."
       );
+
     } finally {
       setLoading(false);
     }
   };
 
-  /*
-   * Load when page opens
-   */
+
   useEffect(() => {
     loadReservations();
   }, []);
 
+
   /*
-   * Change reservation status
+   * =========================================================
+   * GROUP RESERVATIONS
+   *
+   * All reservations having the same reservation_group
+   * become ONE block.
+   *
+   * Old reservations without reservation_group are kept
+   * individually.
+   * =========================================================
    */
-  const updateStatus = async (
-    reservationId,
-    status
-  ) => {
-    try {
-      setUpdatingId(reservationId);
 
-      const response = await fetch(
-        `${API_URL}${reservationId}/`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-          body: JSON.stringify({
-            status: status,
-          }),
-        }
-      );
+  const groupedReservations = useMemo(() => {
 
-      if (!response.ok) {
-        const errorData =
-          await response.json();
+    const groups = {};
 
-        console.error(
-          "Update reservation error:",
-          errorData
-        );
-
-        throw new Error(
-          "Unable to update reservation"
-        );
-      }
-
-      const updatedReservation =
-        await response.json();
+    reservations.forEach((reservation) => {
 
       /*
-       * Update only the modified
-       * reservation in the state
+       * If reservation_group exists:
+       * use it.
+       *
+       * Otherwise create a temporary group for
+       * old reservations.
        */
-      setReservations(
-        (previous) =>
-          previous.map(
-            (reservation) =>
-              reservation.id ===
-              reservationId
-                ? updatedReservation
-                : reservation
-          )
-      );
 
-    } catch (err) {
-      console.error(
-        "Status update error:",
-        err
-      );
+      const groupKey =
+        reservation.reservation_group
+          ? reservation.reservation_group
+          : `SINGLE-${reservation.id}`;
 
-      alert(
-        "Unable to update the reservation."
-      );
-    } finally {
-      setUpdatingId(null);
-    }
-  };
 
-  /*
-   * Delete reservation
-   */
-  const deleteReservation = async (
-    reservationId
-  ) => {
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this reservation?"
-    );
+      if (!groups[groupKey]) {
 
-    if (!confirmed) {
-      return;
-    }
+        groups[groupKey] = {
+          groupId: groupKey,
 
-    try {
-      setUpdatingId(reservationId);
+          reservationGroup:
+            reservation.reservation_group || null,
 
-      const response = await fetch(
-        `${API_URL}${reservationId}/`,
-        {
-          method: "DELETE",
-        }
-      );
+          reservationNumber:
+            reservation.reservation_number,
 
-      if (!response.ok) {
-        throw new Error(
-          "Unable to delete reservation"
-        );
+          playerName:
+            reservation.player_name || "—",
+
+          playerPhone:
+            reservation.player_phone || "—",
+
+          date:
+            reservation.date,
+
+          time:
+            reservation.time,
+
+          duration:
+            reservation.duration,
+
+          status:
+            reservation.status,
+
+          reservations: [],
+
+          stations: [],
+
+          createdAt:
+            reservation.created_at,
+        };
       }
 
-      setReservations(
-        (previous) =>
-          previous.filter(
-            (reservation) =>
-              reservation.id !==
-              reservationId
-          )
+
+      /*
+       * Add reservation to group
+       */
+
+      groups[groupKey].reservations.push(
+        reservation
       );
 
-    } catch (err) {
-      console.error(
-        "Delete reservation error:",
-        err
-      );
 
-      alert(
-        "Unable to delete the reservation."
-      );
-    } finally {
-      setUpdatingId(null);
-    }
-  };
+      /*
+       * Add station to group
+       */
+
+      groups[groupKey].stations.push({
+        id: reservation.station,
+        name:
+          reservation.station_name ||
+          `Station ${reservation.station_number || reservation.station}`,
+        number:
+          reservation.station_number,
+        status:
+          reservation.status,
+      });
+
+
+      /*
+       * Keep newest creation date
+       */
+
+      if (
+        new Date(reservation.created_at) >
+        new Date(groups[groupKey].createdAt)
+      ) {
+        groups[groupKey].createdAt =
+          reservation.created_at;
+      }
+    });
+
+
+    /*
+     * =======================================================
+     * DETERMINE GROUP STATUS
+     *
+     * Normally all stations have the same status.
+     *
+     * If old/inconsistent data contains different statuses,
+     * we prioritize:
+     *
+     * PENDING
+     * CONFIRMED
+     * COMPLETED
+     * CANCELLED
+     * =======================================================
+     */
+
+    const statusPriority = {
+      PENDING: 1,
+      CONFIRMED: 2,
+      COMPLETED: 3,
+      CANCELLED: 4,
+    };
+
+
+    Object.values(groups).forEach((group) => {
+
+      const statuses =
+        group.reservations.map(
+          (reservation) =>
+            reservation.status
+        );
+
+
+      /*
+       * If every reservation has the same status,
+       * use it directly.
+       */
+
+      const allSame =
+        statuses.every(
+          (status) =>
+            status === statuses[0]
+        );
+
+
+      if (allSame) {
+
+        group.status =
+          statuses[0];
+
+      } else {
+
+        /*
+         * Otherwise use the lowest-priority
+         * active state.
+         */
+
+        group.status =
+          statuses.sort(
+            (a, b) =>
+              statusPriority[a] -
+              statusPriority[b]
+          )[0];
+      }
+    });
+
+
+    /*
+     * Convert object to array and sort
+     * newest first.
+     */
+
+    return Object.values(groups).sort(
+      (a, b) =>
+        new Date(b.createdAt) -
+        new Date(a.createdAt)
+    );
+
+  }, [reservations]);
+
 
   /*
-   * Status label
+   * =========================================================
+   * STATUS LABEL
+   * =========================================================
    */
-  const getStatusLabel = (
-    status
-  ) => {
+
+  const getStatusLabel = (status) => {
+
     switch (status) {
+
       case "PENDING":
         return "PENDING";
 
@@ -215,13 +296,17 @@ function AdminReservations() {
     }
   };
 
+
   /*
-   * Status class
+   * =========================================================
+   * STATUS CSS CLASS
+   * =========================================================
    */
-  const getStatusClass = (
-    status
-  ) => {
+
+  const getStatusClass = (status) => {
+
     switch (status) {
+
       case "PENDING":
         return "status-pending";
 
@@ -239,58 +324,366 @@ function AdminReservations() {
     }
   };
 
+
+  /*
+   * =========================================================
+   * UPDATE WHOLE GROUP
+   *
+   * Example:
+   *
+   * GRP-A12B34CD
+   *
+   * contains 8 reservations.
+   *
+   * PATCH is sent to all 8 reservations.
+   * =========================================================
+   */
+
+  const updateGroupStatus = async (
+    group,
+    newStatus
+  ) => {
+
+    /*
+     * Prevent two actions at the same time.
+     */
+
+    if (updatingGroup) {
+      return;
+    }
+
+
+    let confirmationMessage = "";
+
+
+    if (newStatus === "CONFIRMED") {
+
+      confirmationMessage =
+        `Confirm this reservation for all ${group.stations.length} stations?`;
+
+    } else if (newStatus === "CANCELLED") {
+
+      confirmationMessage =
+        `Reject this reservation for all ${group.stations.length} stations?`;
+
+    } else if (newStatus === "COMPLETED") {
+
+      confirmationMessage =
+        `Mark all ${group.stations.length} stations as completed?`;
+    }
+
+
+    const confirmed =
+      window.confirm(
+        confirmationMessage
+      );
+
+
+    if (!confirmed) {
+      return;
+    }
+
+
+    try {
+
+      setUpdatingGroup(
+        group.groupId
+      );
+
+
+      /*
+       * =====================================================
+       * UPDATE EVERY RESERVATION IN THIS GROUP
+       * =====================================================
+       */
+
+      const results =
+        await Promise.all(
+
+          group.reservations.map(
+            async (reservation) => {
+
+              const response =
+                await fetch(
+                  `${API_URL}${reservation.id}/`,
+                  {
+                    method: "PATCH",
+
+                    headers: {
+                      "Content-Type":
+                        "application/json",
+                    },
+
+                    body: JSON.stringify({
+                      status:
+                        newStatus,
+                    }),
+                  }
+                );
+
+
+              if (!response.ok) {
+
+                const errorData =
+                  await response
+                    .json()
+                    .catch(
+                      () => ({})
+                    );
+
+                console.error(
+                  "Reservation update error:",
+                  errorData
+                );
+
+                throw new Error(
+                  `Unable to update reservation ${reservation.id}`
+                );
+              }
+
+
+              return response.json();
+            }
+          )
+        );
+
+
+      /*
+       * Replace all updated reservations
+       * in the local state.
+       */
+
+      setReservations(
+        (previous) =>
+          previous.map(
+            (reservation) => {
+
+              const updated =
+                results.find(
+                  (item) =>
+                    item.id ===
+                    reservation.id
+                );
+
+              return updated ||
+                reservation;
+            }
+          )
+      );
+
+
+    } catch (err) {
+
+      console.error(
+        "Group status update error:",
+        err
+      );
+
+      alert(
+        "Unable to update all stations of this reservation."
+      );
+
+      /*
+       * Reload from backend to make sure
+       * the UI reflects the real state.
+       */
+
+      await loadReservations();
+
+    } finally {
+
+      setUpdatingGroup(null);
+    }
+  };
+
+
+  /*
+   * =========================================================
+   * DELETE WHOLE GROUP
+   * =========================================================
+   */
+
+  const deleteGroup = async (group) => {
+
+    if (updatingGroup) {
+      return;
+    }
+
+
+    const confirmed =
+      window.confirm(
+        `Delete this reservation and all ${group.stations.length} stations? This action cannot be undone.`
+      );
+
+
+    if (!confirmed) {
+      return;
+    }
+
+
+    try {
+
+      setUpdatingGroup(
+        group.groupId
+      );
+
+
+      /*
+       * Delete every reservation belonging
+       * to the same group.
+       */
+
+      await Promise.all(
+
+        group.reservations.map(
+          async (reservation) => {
+
+            const response =
+              await fetch(
+                `${API_URL}${reservation.id}/`,
+                {
+                  method: "DELETE",
+                }
+              );
+
+
+            if (!response.ok) {
+
+              throw new Error(
+                `Unable to delete reservation ${reservation.id}`
+              );
+            }
+          }
+        )
+      );
+
+
+      /*
+       * Remove all reservations belonging
+       * to this group from the UI.
+       */
+
+      const reservationIds =
+        new Set(
+          group.reservations.map(
+            (reservation) =>
+              reservation.id
+          )
+        );
+
+
+      setReservations(
+        (previous) =>
+          previous.filter(
+            (reservation) =>
+              !reservationIds.has(
+                reservation.id
+              )
+          )
+      );
+
+
+    } catch (err) {
+
+      console.error(
+        "Delete group error:",
+        err
+      );
+
+      alert(
+        "Unable to delete all stations of this reservation."
+      );
+
+      await loadReservations();
+
+    } finally {
+
+      setUpdatingGroup(null);
+    }
+  };
+
+
+  /*
+   * =========================================================
+   * RENDER
+   * =========================================================
+   */
+
   return (
     <section className="admin-page">
+
+      {/* =====================================================
+          HEADER
+      ===================================================== */}
 
       <div className="admin-page-header">
 
         <div>
-          <span>BOOKINGS</span>
+
+          <span>
+            BOOKINGS
+          </span>
 
           <h1>
             RESERVATIONS
             <br />
-            <strong>MANAGER.</strong>
+
+            <strong>
+              MANAGER.
+            </strong>
           </h1>
+
         </div>
 
       </div>
+
+
+      {/* =====================================================
+          MAIN PANEL
+      ===================================================== */}
 
       <div className="admin-panel">
 
         <div className="admin-panel-header">
 
           <h2>
-            ALL RESERVATIONS
+            RESERVATION GROUPS
           </h2>
 
           <span>
-            {reservations.length} BOOKINGS
+            {groupedReservations.length} BOOKINGS
           </span>
 
         </div>
 
-        {loading ? (
+
+        {/* ===================================================
+            LOADING
+        =================================================== */}
+
+        {loading && (
 
           <div className="admin-empty">
 
-            <CalendarDays
-              size={45}
-            />
+            <CalendarDays size={45} />
 
             <p>
               Loading reservations...
             </p>
 
           </div>
+        )}
 
-        ) : error ? (
+
+        {/* ===================================================
+            ERROR
+        =================================================== */}
+
+        {!loading && error && (
 
           <div className="admin-empty">
 
-            <CalendarDays
-              size={45}
-            />
+            <CalendarDays size={45} />
 
             <p>
               {error}
@@ -298,271 +691,463 @@ function AdminReservations() {
 
             <button
               className="admin-primary-button"
-              onClick={
-                loadReservations
-              }
+              onClick={loadReservations}
             >
               RETRY
             </button>
 
           </div>
+        )}
 
-        ) : reservations.length ===
-          0 ? (
 
-          <div className="admin-empty">
+        {/* ===================================================
+            EMPTY
+        =================================================== */}
 
-            <CalendarDays
-              size={45}
-            />
+        {!loading &&
+          !error &&
+          groupedReservations.length === 0 && (
 
-            <p>
-              No reservations found.
-            </p>
+            <div className="admin-empty">
 
-          </div>
+              <CalendarDays size={45} />
 
-        ) : (
+              <p>
+                No reservations found.
+              </p>
 
-          <div className="admin-table-wrapper">
+            </div>
+          )}
 
-            <table className="admin-table">
 
-              <thead>
+        {/* ===================================================
+            RESERVATION GROUPS
+        =================================================== */}
 
-                <tr>
-                  <th>NUMBER</th>
-                  <th>PLAYER</th>
-                  <th>PHONE</th>
-                  <th>GAME</th>
-                  <th>DATE</th>
-                  <th>TIME</th>
-                  <th>DURATION</th>
-                  <th>STATUS</th>
-                  <th>ACTIONS</th>
-                </tr>
+        {!loading &&
+          !error &&
+          groupedReservations.length > 0 && (
 
-              </thead>
+            <div className="reservation-groups">
 
-              <tbody>
+              {groupedReservations.map(
+                (group) => {
 
-                {reservations
-                  .slice()
-                  .sort(
-                    (a, b) =>
-                      new Date(
-                        b.created_at
-                      ) -
-                      new Date(
-                        a.created_at
-                      )
-                  )
-                  .map(
-                    (reservation) => (
+                  const isUpdating =
+                    updatingGroup ===
+                    group.groupId;
 
-                      <tr
-                        key={
-                          reservation.id
-                        }
-                      >
 
-                        {/* NUMBER */}
+                  return (
 
-                        <td>
-                          {
-                            reservation.reservation_number
-                          }
-                        </td>
+                    <div
+                      key={
+                        group.groupId
+                      }
+                      className="reservation-group-card"
+                    >
 
-                        {/* PLAYER */}
+                      {/* =====================================
+                          GROUP HEADER
+                      ====================================== */}
 
-                        <td>
-                          {
-                            reservation.player_name
-                          }
-                        </td>
+                      <div className="reservation-group-header">
 
-                        {/* PHONE */}
+                        <div className="reservation-group-title">
 
-                        <td>
-                          {
-                            reservation.player_phone
-                          }
-                        </td>
+                          <div className="reservation-group-icon">
 
-                        {/* GAME */}
-
-                        <td>
-                          {
-                            reservation.game_name
-                          }
-                        </td>
-
-                        {/* DATE */}
-
-                        <td>
-                          {
-                            reservation.date
-                          }
-                        </td>
-
-                        {/* TIME */}
-
-                        <td>
-                          {
-                            reservation.time
-                          }
-                        </td>
-
-                        {/* DURATION */}
-
-                        <td>
-                          {
-                            reservation.duration
-                          }{" "}
-                          H
-                        </td>
-
-                        {/* STATUS */}
-
-                        <td>
-
-                          <span
-                            className={`reservation-status ${getStatusClass(
-                              reservation.status
-                            )}`}
-                          >
-                            {getStatusLabel(
-                              reservation.status
-                            )}
-                          </span>
-
-                        </td>
-
-                        {/* ACTIONS */}
-
-                        <td>
-
-                          <div className="reservation-actions">
-
-                            {/* CONFIRM */}
-
-                            {reservation.status ===
-                              "PENDING" && (
-
-                              <button
-                                className="confirm-button"
-                                title="Confirm reservation"
-                                disabled={
-                                  updatingId ===
-                                  reservation.id
-                                }
-                                onClick={() =>
-                                  updateStatus(
-                                    reservation.id,
-                                    "CONFIRMED"
-                                  )
-                                }
-                              >
-                                <Check
-                                  size={17}
-                                />
-                              </button>
-
-                            )}
-
-                            {/* COMPLETE */}
-
-                            {reservation.status ===
-                              "CONFIRMED" && (
-
-                              <button
-                                className="complete-button"
-                                title="Complete reservation"
-                                disabled={
-                                  updatingId ===
-                                  reservation.id
-                                }
-                                onClick={() =>
-                                  updateStatus(
-                                    reservation.id,
-                                    "COMPLETED"
-                                  )
-                                }
-                              >
-                                <CircleCheck
-                                  size={17}
-                                />
-                              </button>
-
-                            )}
-
-                            {/* REJECT */}
-
-                            {(
-                              reservation.status ===
-                                "PENDING" ||
-                              reservation.status ===
-                                "CONFIRMED"
-                            ) && (
-
-                              <button
-                                className="reject-button"
-                                title="Reject reservation"
-                                disabled={
-                                  updatingId ===
-                                  reservation.id
-                                }
-                                onClick={() =>
-                                  updateStatus(
-                                    reservation.id,
-                                    "CANCELLED"
-                                  )
-                                }
-                              >
-                                <X
-                                  size={17}
-                                />
-                              </button>
-
-                            )}
-
-                            {/* DELETE */}
-
-                            <button
-                              className="delete-button"
-                              title="Delete reservation"
-                              disabled={
-                                updatingId ===
-                                reservation.id
-                              }
-                              onClick={() =>
-                                deleteReservation(
-                                  reservation.id
-                                )
-                              }
-                            >
-                              <Trash2
-                                size={17}
-                              />
-                            </button>
+                            <Users
+                              size={22}
+                            />
 
                           </div>
 
-                        </td>
+                          <div>
 
-                      </tr>
+                            <span className="reservation-group-label">
+                              RESERVATION GROUP
+                            </span>
 
-                    )
-                  )}
+                            <h3>
+                              {group.reservationGroup ||
+                                group.reservationNumber}
+                            </h3>
 
-              </tbody>
+                          </div>
 
-            </table>
+                        </div>
 
-          </div>
 
-        )}
+                        <span
+                          className={`reservation-status ${getStatusClass(
+                            group.status
+                          )}`}
+                        >
+                          {getStatusLabel(
+                            group.status
+                          )}
+                        </span>
+
+                      </div>
+
+
+                      {/* =====================================
+                          CLIENT INFORMATION
+                      ====================================== */}
+
+                      <div className="reservation-group-info">
+
+                        <div className="reservation-info-item">
+
+                          <User
+                            size={18}
+                          />
+
+                          <div>
+
+                            <span>
+                              PLAYER
+                            </span>
+
+                            <strong>
+                              {group.playerName}
+                            </strong>
+
+                          </div>
+
+                        </div>
+
+
+                        <div className="reservation-info-item">
+
+                          <Phone
+                            size={18}
+                          />
+
+                          <div>
+
+                            <span>
+                              PHONE
+                            </span>
+
+                            <strong>
+                              {group.playerPhone}
+                            </strong>
+
+                          </div>
+
+                        </div>
+
+
+                        <div className="reservation-info-item">
+
+                          <CalendarDays
+                            size={18}
+                          />
+
+                          <div>
+
+                            <span>
+                              DATE
+                            </span>
+
+                            <strong>
+                              {group.date}
+                            </strong>
+
+                          </div>
+
+                        </div>
+
+
+                        <div className="reservation-info-item">
+
+                          <Clock
+                            size={18}
+                          />
+
+                          <div>
+
+                            <span>
+                              TIME
+                            </span>
+
+                            <strong>
+                              {group.time}
+                            </strong>
+
+                          </div>
+
+                        </div>
+
+
+                        <div className="reservation-info-item">
+
+                          <Clock
+                            size={18}
+                          />
+
+                          <div>
+
+                            <span>
+                              DURATION
+                            </span>
+
+                            <strong>
+                              {group.duration} H
+                            </strong>
+
+                          </div>
+
+                        </div>
+
+
+                        <div className="reservation-info-item">
+
+                          <Monitor
+                            size={18}
+                          />
+
+                          <div>
+
+                            <span>
+                              STATIONS
+                            </span>
+
+                            <strong>
+                              {group.stations.length}
+                            </strong>
+
+                          </div>
+
+                        </div>
+
+                      </div>
+
+
+                      {/* =====================================
+                          STATIONS
+                      ====================================== */}
+
+                      <div className="reservation-stations-section">
+
+                        <div className="reservation-stations-title">
+
+                          <Monitor
+                            size={19}
+                          />
+
+                          <span>
+                            RESERVED STATIONS
+                          </span>
+
+                        </div>
+
+
+                        <div className="reservation-stations-list">
+
+                          {group.stations
+                            .sort(
+                              (a, b) =>
+                                (a.number || 0) -
+                                (b.number || 0)
+                            )
+                            .map(
+                              (
+                                station
+                              ) => (
+
+                                <div
+                                  key={
+                                    station.id
+                                  }
+                                  className="reservation-station-chip"
+                                >
+
+                                  <Monitor
+                                    size={16}
+                                  />
+
+                                  <span>
+                                    {station.name}
+                                  </span>
+
+                                </div>
+
+                              )
+                            )}
+
+                        </div>
+
+                      </div>
+
+
+                      {/* =====================================
+                          ACTIONS
+                      ====================================== */}
+
+                      <div className="reservation-group-actions">
+
+                        <div className="reservation-group-action-info">
+
+                          <span>
+                            {group.stations.length} stations
+                          </span>
+
+                          <small>
+                            Actions apply to the entire reservation
+                          </small>
+
+                        </div>
+
+
+                        <div className="reservation-actions">
+
+                          {/* =================================
+                              CONFIRM
+                          ================================= */}
+
+                          {group.status ===
+                            "PENDING" && (
+
+                            <button
+                              className="confirm-button"
+                              title="Confirm entire reservation"
+                              disabled={
+                                isUpdating
+                              }
+                              onClick={() =>
+                                updateGroupStatus(
+                                  group,
+                                  "CONFIRMED"
+                                )
+                              }
+                            >
+
+                              {isUpdating ? (
+                                <RefreshCw
+                                  size={17}
+                                  className="spin"
+                                />
+                              ) : (
+                                <Check
+                                  size={17}
+                                />
+                              )}
+
+                            </button>
+                          )}
+
+
+                          {/* =================================
+                              COMPLETE
+                          ================================= */}
+
+                          {group.status ===
+                            "CONFIRMED" && (
+
+                            <button
+                              className="complete-button"
+                              title="Complete entire reservation"
+                              disabled={
+                                isUpdating
+                              }
+                              onClick={() =>
+                                updateGroupStatus(
+                                  group,
+                                  "COMPLETED"
+                                )
+                              }
+                            >
+
+                              {isUpdating ? (
+                                <RefreshCw
+                                  size={17}
+                                  className="spin"
+                                />
+                              ) : (
+                                <CircleCheck
+                                  size={17}
+                                />
+                              )}
+
+                            </button>
+                          )}
+
+
+                          {/* =================================
+                              REJECT
+                          ================================= */}
+
+                          {(group.status ===
+                            "PENDING" ||
+                            group.status ===
+                              "CONFIRMED") && (
+
+                            <button
+                              className="reject-button"
+                              title="Reject entire reservation"
+                              disabled={
+                                isUpdating
+                              }
+                              onClick={() =>
+                                updateGroupStatus(
+                                  group,
+                                  "CANCELLED"
+                                )
+                              }
+                            >
+
+                              <X
+                                size={17}
+                              />
+
+                            </button>
+                          )}
+
+
+                          {/* =================================
+                              DELETE
+                          ================================= */}
+
+                          <button
+                            className="delete-button"
+                            title="Delete entire reservation"
+                            disabled={
+                              isUpdating
+                            }
+                            onClick={() =>
+                              deleteGroup(
+                                group
+                              )
+                            }
+                          >
+
+                            {isUpdating ? (
+                              <RefreshCw
+                                size={17}
+                                className="spin"
+                              />
+                            ) : (
+                              <Trash2
+                                size={17}
+                              />
+                            )}
+
+                          </button>
+
+                        </div>
+
+                      </div>
+
+                    </div>
+                  );
+                }
+              )}
+
+            </div>
+          )}
 
       </div>
 

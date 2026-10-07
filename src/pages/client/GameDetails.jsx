@@ -21,7 +21,7 @@ function GameDetails() {
       setError("");
 
       const response = await fetch(
-        `https://nexusgameback.onrender.com/api/games/${id}/`
+        `https://nexusgameback.onrender.com/api/games//${id}/`
       );
 
       if (!response.ok) {

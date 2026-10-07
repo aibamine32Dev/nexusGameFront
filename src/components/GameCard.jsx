@@ -40,9 +40,7 @@ function GameCard({ game }) {
             <small>/ HOUR</small>
           </div>
 
-          <Link to={`/games/${game.id}`} className="game-arrow">
-            <ArrowUpRight size={22} />
-          </Link>
+          
         </div>
       </div>
     </article>

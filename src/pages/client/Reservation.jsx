@@ -1,141 +1,71 @@
-import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useState } from "react";
 import ReservationForm from "../../components/ReservationForm";
 
 function Reservation() {
-  const [searchParams] = useSearchParams();
-
-  const gameId = Number(
-    searchParams.get("game")
-  );
-
-  const [selectedGame, setSelectedGame] =
-    useState(null);
-
-  const [loading, setLoading] =
-    useState(true);
-
-  const [error, setError] =
-    useState("");
-
-  const API_URL =
-    "https://nexusgameback.onrender.com/api/games/";
-
-  useEffect(() => {
-    const loadGame = async () => {
-
-      // Aucun jeu sélectionné
-      if (!gameId) {
-        setSelectedGame(null);
-        setLoading(false);
-        return;
-      }
-
-      try {
-        setLoading(true);
-        setError("");
-
-        const response = await fetch(
-          `${API_URL}${gameId}/`
-        );
-
-        if (!response.ok) {
-          throw new Error(
-            "Game not found"
-          );
-        }
-
-        const data =
-          await response.json();
-
-        setSelectedGame(data);
-
-      } catch (err) {
-
-        console.error(
-          "Game API error:",
-          err
-        );
-
-        setSelectedGame(null);
-
-        setError(
-          "Unable to load the selected game."
-        );
-
-      } finally {
-
-        setLoading(false);
-
-      }
-    };
-
-    loadGame();
-
-  }, [gameId]);
+  const [reservationCreated, setReservationCreated] =
+    useState(false);
 
   return (
     <section className="reservation-page">
 
       <div className="reservation-intro">
-
-        <span>
-          ENTER THE ARENA
-        </span>
+        <span>ENTER THE ARENA</span>
 
         <h1>
           BOOK YOUR
           <br />
-          <strong>
-            SESSION.
-          </strong>
+          <strong>STATION.</strong>
         </h1>
 
         <p>
-          No account. No complicated
-          registration. Just choose your
-          game, pick your time and get
-          ready to play.
+          Choose your gaming station, select your
+          date and time, and book your session.
+          No account required.
         </p>
 
         <div className="reservation-warning">
-
-          <strong>
-            IMPORTANT
-          </strong>
+          <strong>IMPORTANT</strong>
 
           <p>
-            Please arrive at least 10
-            minutes before your
-            reservation.
+            The minimum reservation duration is
+            2 hours.
           </p>
-
         </div>
-
       </div>
 
       <div className="reservation-container">
 
         <div className="reservation-form-wrapper">
 
-          {loading && (
-            <p>
-              LOADING GAME...
-            </p>
-          )}
-
-          {!loading && error && (
-            <div>
-              <p>
-                {error}
-              </p>
-            </div>
-          )}
-
-          {!loading && !error && (
+          {!reservationCreated ? (
             <ReservationForm
-              selectedGame={selectedGame}
+              onReservationCreated={() =>
+                setReservationCreated(true)
+              }
             />
+          ) : (
+            <div className="reservation-success-message">
+
+              <h2>
+                RESERVATION CREATED
+              </h2>
+
+              <p>
+                Your gaming station has been
+                successfully reserved.
+              </p>
+
+              <button
+                type="button"
+                className="primary-button"
+                onClick={() =>
+                  setReservationCreated(false)
+                }
+              >
+                MAKE ANOTHER RESERVATION
+              </button>
+
+            </div>
           )}
 
         </div>

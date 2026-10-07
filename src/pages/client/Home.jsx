@@ -73,6 +73,11 @@ function Home() {
               <ArrowRight size={20} />
             </Link>
 
+            <Link to="/matchmaking" className="primary-button">
+              FIND A MATCH
+              <ArrowRight size={20} />
+            </Link>
+
             <Link to="/games" className="secondary-button">
               EXPLORE GAMES
             </Link>
