@@ -15,7 +15,7 @@ function MatchMaking() {
   // API
   // =========================================================
 
-  const API_URL = "https://nexusgameback.onrender.com/api/api";
+  const API_URL = "https://nexusgameback.onrender.com/api";
 
   // =========================================================
   // TABS
