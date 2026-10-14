@@ -50,6 +50,11 @@ function AdminSidebar() {
           Matches
         </NavLink>
 
+        <NavLink to="/admin/players">
+          <CalendarDays size={19} />
+          Players
+        </NavLink>
+
         <NavLink to="/admin/games">
           <Gamepad2 size={19} />
           Games

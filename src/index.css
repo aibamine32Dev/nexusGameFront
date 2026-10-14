@@ -7085,3 +7085,365 @@ img {
     width: 100%;
   }
 }
+
+/* =========================================================
+   CLIENT ACCOUNT (login / register / account)
+   ========================================================= */
+
+.nav-account {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--red);
+}
+
+.nav-logout {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px;
+  background: transparent;
+  border: 1px solid #2a2a2a;
+  color: #999;
+  transition: 0.2s;
+}
+
+.nav-logout:hover {
+  color: #fff;
+  border-color: var(--red);
+}
+
+.auth-page {
+  min-height: 100vh;
+  padding: 120px 25px 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    linear-gradient(rgba(0, 0, 0, 0.86), rgba(0, 0, 0, 0.96)),
+    radial-gradient(circle at center, #280000 0%, #050505 55%);
+}
+
+.auth-box {
+  width: 100%;
+  max-width: 480px;
+  padding: 50px;
+  background: #0b0b0b;
+  border: 1px solid #292929;
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.6);
+}
+
+.auth-title span {
+  color: var(--red);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 3px;
+}
+
+.auth-title h1 {
+  margin: 10px 0 35px;
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: 55px;
+  line-height: 0.85;
+}
+
+.auth-title h1 strong {
+  color: var(--red);
+}
+
+.auth-box form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.auth-input {
+  height: 55px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 17px;
+  background: #050505;
+  border: 1px solid #2a2a2a;
+}
+
+.auth-input:focus-within {
+  border-color: var(--red);
+}
+
+.auth-input.invalid {
+  border-color: var(--red);
+}
+
+.auth-input > svg {
+  color: #666;
+  flex-shrink: 0;
+}
+
+.auth-input input {
+  width: 100%;
+  height: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: #fff;
+  font-size: 13px;
+}
+
+.auth-input input::placeholder {
+  color: #555;
+}
+
+.auth-eye {
+  display: flex;
+  background: none;
+  border: none;
+  color: #666;
+}
+
+.auth-eye:hover {
+  color: #fff;
+}
+
+.auth-field-error {
+  color: var(--red);
+  font-size: 11px;
+}
+
+.auth-error {
+  margin: 0;
+  padding: 12px;
+  background: rgba(225, 6, 0, 0.08);
+  border-left: 3px solid var(--red);
+  color: var(--red);
+  font-size: 12px;
+}
+
+.auth-box .primary-button.full {
+  width: 100%;
+  margin-top: 5px;
+  border: none;
+}
+
+.auth-box .primary-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.auth-switch {
+  margin-top: 28px;
+  text-align: center;
+  color: #777;
+  font-size: 12px;
+}
+
+.auth-switch a {
+  margin-left: 4px;
+  color: var(--red);
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.auth-switch a:hover {
+  color: #fff;
+}
+
+.auth-loading {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 3px;
+}
+
+/* account page */
+
+.account-details {
+  list-style: none;
+  margin-bottom: 25px;
+  border: 1px solid #252525;
+}
+
+.account-details li {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 16px 18px;
+  border-bottom: 1px solid #252525;
+}
+
+.account-details li:last-child {
+  border-bottom: none;
+}
+
+.account-details svg {
+  color: var(--red);
+  flex-shrink: 0;
+}
+
+.account-details div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.account-details small {
+  color: #666;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+
+.account-details span {
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.auth-logout {
+  width: 100%;
+  margin-top: 20px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  color: #666;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.auth-logout:hover {
+  color: #fff;
+}
+
+@media (max-width: 600px) {
+  .auth-box {
+    padding: 35px 25px;
+  }
+
+  .auth-title h1 {
+    font-size: 48px;
+  }
+}
+
+
+/* ========================================================= */
+/* ADMIN PLAYERS / PROFILES BUTTONS & ACTIONS STYLING          */
+/* ========================================================= */
+
+/* Bouton principal de confirmation / ajout */
+.confirm-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background-color: #10b981; /* Vert moderne */
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.confirm-button:hover:not(:disabled) {
+  background-color: #059669;
+}
+
+.confirm-button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.confirm-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Bouton de rejet / retrait */
+.reject-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background-color: #f59e0b; /* Orange / Ambre */
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.reject-button:hover:not(:disabled) {
+  background-color: #d97706;
+}
+
+.reject-button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.reject-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Bouton de suppression */
+.delete-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background-color: #ef4444; /* Rouge vif */
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.delete-button:hover:not(:disabled) {
+  background-color: #dc2626;
+}
+
+.delete-button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.delete-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Animation de rotation pour l'icône de chargement */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}

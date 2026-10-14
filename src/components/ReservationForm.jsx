@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 
+import { useAuth } from "../context/AuthContext";
+
 import {
   CalendarDays,
   Clock,
@@ -11,7 +13,19 @@ import {
   RotateCcw,
 } from "lucide-react";
 
+const getLocalDate = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
+
 function ReservationForm() {
+
+  // Logged-in clients get their name + phone pre-filled
+  const { user } = useAuth();
 
   // =========================================================
   // API LOCALE DJANGO
@@ -61,8 +75,8 @@ function ReservationForm() {
   // =========================================================
 
   const [form, setForm] = useState({
-    name: "",
-    phone: "",
+    name: user?.name || "",
+    phone: user?.phone || "",
     date: "",
     time: "",
     duration: 2,
@@ -606,8 +620,8 @@ function ReservationForm() {
     setSelectedStations([]);
 
     setForm({
-      name: "",
-      phone: "",
+      name: user?.name || "",
+      phone: user?.phone || "",
       date: "",
       time: "",
       duration: 2,
@@ -700,11 +714,11 @@ function ReservationForm() {
 
     if (
       !duration ||
-      duration < 2
+      duration < 1
     ) {
 
       setError(
-        "The minimum reservation duration is 2 hours."
+        "The minimum reservation duration is 1 hour."
       );
 
       return;
@@ -1178,19 +1192,29 @@ function ReservationForm() {
 
               <Clock size={20} />
 
-              <div>
+              {/* TIME */}
 
-                <span>
-                  START TIME
-                </span>
+          <div className="form-group">
 
-                <strong>
-                  {
-                    reservationResult.time
-                  }
-                </strong>
+            <label htmlFor="time">
+              START TIME
+            </label>
 
-              </div>
+            <input
+              id="time"
+              type="text"
+              name="time"
+              value={form.time}
+              onChange={handleChange}
+              placeholder="Ex: 14:00"
+              maxLength={5}
+              disabled={submitting}
+            />
+            <small style={{ color: "rgba(255,255,255,0.5)", fontSize: "11px", marginTop: "4px" }}>
+              Format 24h (ex: 14:00)
+            </small>
+
+          </div>
 
             </div>
 
@@ -1483,6 +1507,9 @@ function ReservationForm() {
               onChange={handleChange}
               disabled={submitting}
             >
+              <option value={1}>
+                1 HOURS
+              </option>
 
               <option value={2}>
                 2 HOURS

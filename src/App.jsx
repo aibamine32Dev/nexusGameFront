@@ -13,6 +13,10 @@ import ReservationSuccess from "./pages/client/ReservationSuccess";
 import About from "./pages/client/About";
 import Contact from "./pages/client/Contact";
 import MatchMaking from "./pages/client/MatchMaking";
+import Login from "./pages/client/Login";
+import Register from "./pages/client/Register";
+import Account from "./pages/client/Account";
+import ClientRoute from "./components/ClientRoute";
 
 /* ADMIN */
 import AdminLogin from "./pages/admin/AdminLogin";
@@ -22,6 +26,7 @@ import AdminGames from "./pages/admin/AdminGames";
 import AdminGameNew from "./pages/admin/AdminGameNew";
 import AdminGameEdit from "./pages/admin/AdminGameEdit";
 import AdminMatches from "./pages/admin/AdminMatchescopy";
+import AdminPlayers from "./pages/admin/AdminPlayers";
 
 function App() {
   return (
@@ -72,6 +77,27 @@ function App() {
           element={<Contact />}
         />
 
+        {/* CLIENT ACCOUNT */}
+
+        <Route
+          path="/login"
+          element={<Login />}
+        />
+
+        <Route
+          path="/register"
+          element={<Register />}
+        />
+
+        <Route
+          path="/account"
+          element={
+            <ClientRoute>
+              <Account />
+            </ClientRoute>
+          }
+        />
+
       </Route>
 
 
@@ -114,6 +140,11 @@ function App() {
         <Route
           path="/admin/games/new"
           element={<AdminGameNew />}
+        />
+
+        <Route 
+          path="/admin/players" 
+          element={<AdminPlayers />} 
         />
 
         <Route
