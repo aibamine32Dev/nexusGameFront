@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import {
   CalendarDays,
@@ -9,46 +9,427 @@ import {
   CircleCheck,
   Phone,
   RotateCcw,
+  ChevronLeft,
+  ChevronRight,
+  X,
 } from "lucide-react";
 
 const API_URL = "https://nexusgameback.onrender.com/api";
 
-const pad = (value) => String(value).padStart(2, "0");
+// =========================================================
+// DATE LOCALE : SANS CONVERSION UTC
+// =========================================================
 
 const getLocalDate = () => {
   const now = new Date();
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(
-    now.getDate()
-  )}`;
-};
 
-// Convertit JJ/MM/AAAA vers AAAA-MM-JJ
-const parseDate = (value) => {
-  const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-
-  if (!match) return "";
-
-  const [, day, month, year] = match;
-  const date = new Date(Number(year), Number(month) - 1, Number(day));
-
-  if (
-    date.getFullYear() !== Number(year) ||
-    date.getMonth() !== Number(month) - 1 ||
-    date.getDate() !== Number(day)
-  ) {
-    return "";
-  }
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
 };
 
-// Accepte aussi bien une liste qu'une réponse paginée Django
-const extractPlayer = (data) => {
-  if (Array.isArray(data)) return data[0] || null;
-  if (Array.isArray(data?.results)) return data.results[0] || null;
-  if (data?.id) return data;
-  return null;
+const parseLocalDate = (dateString) => {
+  if (!dateString || !/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+    return null;
+  }
+
+  const [year, month, day] = dateString.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return null;
+  }
+
+  return date;
 };
+
+const formatDateForDisplay = (dateString) => {
+  const date = parseLocalDate(dateString);
+
+  if (!date) return "";
+
+  return new Intl.DateTimeFormat("fr-FR", {
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  }).format(date);
+};
+
+const getMonthName = (date) => {
+  return new Intl.DateTimeFormat("fr-FR", {
+    month: "long",
+    year: "numeric",
+  }).format(date);
+};
+
+const toDateKey = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
+
+// =========================================================
+// CALENDRIER REACT PERSONNALISÉ
+// =========================================================
+
+function ReactDatePicker({
+  value,
+  onChange,
+  disabled = false,
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const [viewDate, setViewDate] = useState(() => {
+    return parseLocalDate(value) || new Date();
+  });
+
+  const today = getLocalDate();
+
+  const firstDay = new Date(
+    viewDate.getFullYear(),
+    viewDate.getMonth(),
+    1
+  );
+
+  const daysInMonth = new Date(
+    viewDate.getFullYear(),
+    viewDate.getMonth() + 1,
+    0
+  ).getDate();
+
+  // Lundi = 0, dimanche = 6
+  const startingDay = (firstDay.getDay() + 6) % 7;
+
+  const calendarDays = [];
+
+  for (let i = 0; i < startingDay; i++) {
+    calendarDays.push(null);
+  }
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    calendarDays.push(day);
+  }
+
+  const changeMonth = (offset) => {
+    setViewDate((previous) => {
+      return new Date(
+        previous.getFullYear(),
+        previous.getMonth() + offset,
+        1
+      );
+    });
+  };
+
+  const openCalendar = () => {
+    if (disabled) return;
+
+    setViewDate(
+      parseLocalDate(value) ||
+        parseLocalDate(today) ||
+        new Date()
+    );
+
+    setIsOpen((previous) => !previous);
+  };
+
+  const selectDate = (day) => {
+    if (!day) return;
+
+    const selected = new Date(
+      viewDate.getFullYear(),
+      viewDate.getMonth(),
+      day
+    );
+
+    const selectedKey = toDateKey(selected);
+
+    if (selectedKey < getLocalDate()) {
+      return;
+    }
+
+    onChange(selectedKey);
+    setIsOpen(false);
+  };
+
+  return (
+    <div
+      className="react-date-picker"
+      style={{
+        position: "relative",
+        width: "100%",
+      }}
+    >
+      <button
+        type="button"
+        className="react-date-trigger"
+        onClick={openCalendar}
+        disabled={disabled}
+        aria-label="Choisir la date de réservation"
+        aria-expanded={isOpen}
+        style={{
+          width: "100%",
+          minHeight: "46px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "10px",
+          padding: "12px 14px",
+          border: "1px solid rgba(255,255,255,0.15)",
+          borderRadius: "8px",
+          background: "#171717",
+          color: "#fff",
+          cursor: disabled ? "not-allowed" : "pointer",
+          textAlign: "left",
+          fontSize: "14px",
+        }}
+      >
+        <span
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+            minWidth: 0,
+          }}
+        >
+          <CalendarDays size={19} color="#ef4444" />
+
+          <span>
+            {value
+              ? formatDateForDisplay(value)
+              : "Choisir une date"}
+          </span>
+        </span>
+
+        <ChevronRight
+          size={18}
+          style={{
+            transform: isOpen ? "rotate(90deg)" : "none",
+            flexShrink: 0,
+          }}
+        />
+      </button>
+
+      {isOpen && (
+        <div
+          className="react-date-calendar"
+          style={{
+            position: "absolute",
+            top: "calc(100% + 8px)",
+            left: 0,
+            right: 0,
+            zIndex: 1000,
+            minWidth: "280px",
+            padding: "14px",
+            border: "1px solid #383838",
+            borderRadius: "12px",
+            background: "#111",
+            color: "#fff",
+            boxShadow: "0 12px 35px rgba(0,0,0,0.55)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: "8px",
+              marginBottom: "14px",
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => changeMonth(-1)}
+              aria-label="Mois précédent"
+              style={calendarNavigationStyle}
+            >
+              <ChevronLeft size={19} />
+            </button>
+
+            <strong
+              style={{
+                textTransform: "capitalize",
+                fontSize: "14px",
+              }}
+            >
+              {getMonthName(viewDate)}
+            </strong>
+
+            <button
+              type="button"
+              onClick={() => changeMonth(1)}
+              aria-label="Mois suivant"
+              style={calendarNavigationStyle}
+            >
+              <ChevronRight size={19} />
+            </button>
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
+              gap: "4px",
+              marginBottom: "5px",
+            }}
+          >
+            {["Lu", "Ma", "Me", "Je", "Ve", "Sa", "Di"].map(
+              (day) => (
+                <div
+                  key={day}
+                  style={{
+                    textAlign: "center",
+                    fontSize: "11px",
+                    color: "#a3a3a3",
+                    padding: "5px 0",
+                  }}
+                >
+                  {day}
+                </div>
+              )
+            )}
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
+              gap: "4px",
+            }}
+          >
+            {calendarDays.map((day, index) => {
+              if (day === null) {
+                return <div key={`empty-${index}`} />;
+              }
+
+              const date = new Date(
+                viewDate.getFullYear(),
+                viewDate.getMonth(),
+                day
+              );
+
+              const dateKey = toDateKey(date);
+              const isPast = dateKey < today;
+              const isToday = dateKey === today;
+              const isSelected = dateKey === value;
+
+              return (
+                <button
+                  key={dateKey}
+                  type="button"
+                  disabled={isPast}
+                  onClick={() => selectDate(day)}
+                  aria-label={dateKey}
+                  aria-pressed={isSelected}
+                  style={{
+                    minWidth: 0,
+                    height: "36px",
+                    padding: 0,
+                    border: isToday
+                      ? "1px solid #ef4444"
+                      : "1px solid transparent",
+                    borderRadius: "7px",
+                    background: isSelected
+                      ? "#dc2626"
+                      : "transparent",
+                    color: isPast ? "#555" : "#fff",
+                    fontSize: "13px",
+                    fontWeight: isSelected ? 700 : 400,
+                    cursor: isPast ? "not-allowed" : "pointer",
+                    opacity: isPast ? 0.4 : 1,
+                  }}
+                >
+                  {day}
+                </button>
+              );
+            })}
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: "8px",
+              marginTop: "14px",
+              paddingTop: "10px",
+              borderTop: "1px solid #333",
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                const currentDate = getLocalDate();
+
+                onChange(currentDate);
+
+                setViewDate(
+                  parseLocalDate(currentDate) || new Date()
+                );
+
+                setIsOpen(false);
+              }}
+              style={{
+                border: "none",
+                background: "transparent",
+                color: "#ef4444",
+                fontSize: "12px",
+                cursor: "pointer",
+                padding: "6px 0",
+              }}
+            >
+              Aujourd'hui
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsOpen(false)}
+              aria-label="Fermer le calendrier"
+              style={{
+                border: "none",
+                background: "transparent",
+                color: "#aaa",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "5px",
+                fontSize: "12px",
+              }}
+            >
+              <X size={14} />
+              Fermer
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const calendarNavigationStyle = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: "34px",
+  height: "34px",
+  border: "1px solid #333",
+  borderRadius: "7px",
+  background: "#202020",
+  color: "#fff",
+  cursor: "pointer",
+};
+
+// =========================================================
+// COMPOSANT PRINCIPAL
+// =========================================================
 
 function ReservationForm() {
   const { user } = useAuth();
@@ -58,189 +439,191 @@ function ReservationForm() {
   const [loadingStations, setLoadingStations] = useState(true);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
-  const [reservationResult, setReservationResult] = useState(null);
   const [selectedStations, setSelectedStations] = useState([]);
-
-  // Date affichée dans le champ : JJ/MM/AAAA
-  const [dateInput, setDateInput] = useState("");
-
-  // Heure séparée en deux listes pour éviter input type="time"
-  const [hour, setHour] = useState("");
-  const [minute, setMinute] = useState("");
+  const [reservationResult, setReservationResult] = useState(null);
 
   const [form, setForm] = useState({
     name: user?.name || "",
     phone: user?.phone || "",
     date: "",
     time: "",
-    duration: "2",
+    duration: 2,
   });
 
-  // ---------------------------------------------------------
-  // CHARGEMENT DES STATIONS
-  // ---------------------------------------------------------
+  // =========================================================
+  // OPTIONS DE L'HEURE : INTERVALLE D'UNE HEURE
+  // =========================================================
+
+  const timeOptions = Array.from({ length: 24 }, (_, hour) => {
+    return `${String(hour).padStart(2, "0")}:00`;
+  });
+
+  // =========================================================
+  // CHARGER LES STATIONS
+  // =========================================================
+
   useEffect(() => {
-    let active = true;
+    const controller = new AbortController();
 
     const loadStations = async () => {
       try {
         setLoadingStations(true);
         setError("");
 
-        const response = await fetch(`${API_URL}/stations/`);
+        const response = await fetch(`${API_URL}/stations/`, {
+          signal: controller.signal,
+        });
 
         if (!response.ok) {
           throw new Error("Unable to load stations.");
         }
 
         const data = await response.json();
+        const stationList = Array.isArray(data)
+          ? data
+          : data.results || [];
 
-        if (!active) return;
+        setStations(stationList);
 
-        setStations(Array.isArray(data) ? data : []);
         setAvailableStations(
-          Array.isArray(data)
-            ? data.filter((station) => station.available)
-            : []
+          stationList.filter((station) => station.available)
         );
       } catch (err) {
-        if (!active) return;
+        if (err.name === "AbortError") return;
 
         console.error("Stations API error:", err);
         setError("Unable to load gaming stations.");
       } finally {
-        if (active) setLoadingStations(false);
+        if (!controller.signal.aborted) {
+          setLoadingStations(false);
+        }
       }
     };
 
     loadStations();
 
-    return () => {
-      active = false;
-    };
+    return () => controller.abort();
   }, []);
 
-  // ---------------------------------------------------------
-  // MODIFICATION DES CHAMPS
-  // ---------------------------------------------------------
+  // =========================================================
+  // MODIFIER LE FORMULAIRE
+  // =========================================================
+
   const handleChange = (event) => {
     const { name, value } = event.target;
 
     setForm((previous) => ({
       ...previous,
-      [name]: value,
+      [name]: name === "duration" ? Number(value) : value,
     }));
 
     setError("");
   };
 
-  // ---------------------------------------------------------
-  // DATE : SAISIE MANUELLE
-  // ---------------------------------------------------------
-  const handleDateChange = (event) => {
-    const value = event.target.value;
-    setDateInput(value);
-    setError("");
+  // =========================================================
+  // CHANGER LA DATE SANS MODIFIER L'HEURE
+  // =========================================================
 
-    const parsedDate = parseDate(value);
-
+  const handleDateChange = (date) => {
     setForm((previous) => ({
       ...previous,
-      date: parsedDate,
+      date,
     }));
 
     setSelectedStations([]);
     setAvailableStations([]);
-  };
-
-  // ---------------------------------------------------------
-  // HEURE : LISTES DÉROULANTES
-  // ---------------------------------------------------------
-  const updateTime = (newHour, newMinute) => {
-    setHour(newHour);
-    setMinute(newMinute);
     setError("");
-
-    const time =
-      newHour !== "" && newMinute !== ""
-        ? `${pad(newHour)}:${pad(newMinute)}`
-        : "";
-
-    setForm((previous) => ({
-      ...previous,
-      time,
-    }));
-
-    setSelectedStations([]);
-    setAvailableStations([]);
   };
 
-  // ---------------------------------------------------------
-  // VÉRIFICATION DE DISPONIBILITÉ
-  // ---------------------------------------------------------
-  const checkAvailability = useCallback(async () => {
+  // =========================================================
+  // VÉRIFIER LA DISPONIBILITÉ
+  // =========================================================
+
+  useEffect(() => {
     if (!form.date || !form.time || !form.duration) {
       setAvailableStations([]);
       setSelectedStations([]);
+      setCheckingAvailability(false);
       return;
     }
 
-    try {
-      setCheckingAvailability(true);
+    const controller = new AbortController();
 
-      const params = new URLSearchParams({
-        date: form.date,
-        time: form.time,
-        duration: String(form.duration),
-      });
+    const checkAvailability = async () => {
+      try {
+        setCheckingAvailability(true);
+        setError("");
 
-      const response = await fetch(
-        `${API_URL}/reservations/availability/?${params.toString()}`
-      );
+        const params = new URLSearchParams({
+          date: form.date,
+          time: form.time,
+          duration: String(form.duration),
+        });
 
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(
-          data.detail || "Unable to check availability."
+        const response = await fetch(
+          `${API_URL}/reservations/availability/?${params.toString()}`,
+          { signal: controller.signal }
         );
-      }
 
-      const available = Array.isArray(data.available_stations)
-        ? data.available_stations
-        : [];
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
 
-      setAvailableStations(available);
+          throw new Error(
+            errorData.detail || "Unable to check availability."
+          );
+        }
 
-      setSelectedStations((previous) =>
-        previous.filter((stationId) =>
-          available.some(
-            (station) => Number(station.id) === Number(stationId)
+        const data = await response.json();
+
+        if (controller.signal.aborted) return;
+
+        const available = Array.isArray(data)
+          ? data
+          : data.available_stations || [];
+
+        setAvailableStations(available);
+
+        setSelectedStations((previous) =>
+          previous.filter((stationId) =>
+            available.some(
+              (station) =>
+                Number(station.id) === Number(stationId)
+            )
           )
-        )
-      );
-    } catch (err) {
-      console.error("Availability API error:", err);
-      setAvailableStations([]);
-      setSelectedStations([]);
-      setError(err.message || "Unable to check station availability.");
-    } finally {
-      setCheckingAvailability(false);
-    }
+        );
+      } catch (err) {
+        if (
+          err.name === "AbortError" ||
+          controller.signal.aborted
+        ) {
+          return;
+        }
+
+        console.error("Availability API error:", err);
+
+        setAvailableStations([]);
+        setSelectedStations([]);
+        setError(
+          err.message || "Unable to check station availability."
+        );
+      } finally {
+        if (!controller.signal.aborted) {
+          setCheckingAvailability(false);
+        }
+      }
+    };
+
+    checkAvailability();
+
+    return () => controller.abort();
   }, [form.date, form.time, form.duration]);
 
-  useEffect(() => {
-    if (form.date && form.time && form.duration) {
-      checkAvailability();
-    }
-  }, [form.date, form.time, form.duration, checkAvailability]);
-
-  // ---------------------------------------------------------
+  // =========================================================
   // SÉLECTION DES STATIONS
-  // ---------------------------------------------------------
+  // =========================================================
+
   const toggleStation = (stationId) => {
     setError("");
 
@@ -264,17 +647,30 @@ function ReservationForm() {
     });
   };
 
-  const isStationAvailable = (stationId) =>
-    availableStations.some(
-      (station) => Number(station.id) === Number(stationId)
-    );
+  // =========================================================
+  // EXTRAIRE UN PLAYER D'UNE RÉPONSE API
+  // =========================================================
 
-  const isStationSelected = (stationId) =>
-    selectedStations.some((id) => Number(id) === Number(stationId));
+  const extractPlayer = (data) => {
+    if (Array.isArray(data)) {
+      return data[0] || null;
+    }
 
-  // ---------------------------------------------------------
-  // RÉCUPÉRER OU CRÉER LE JOUEUR
-  // ---------------------------------------------------------
+    if (data && Array.isArray(data.results)) {
+      return data.results[0] || null;
+    }
+
+    if (data && data.id) {
+      return data;
+    }
+
+    return null;
+  };
+
+  // =========================================================
+  // RÉCUPÉRER OU CRÉER LE PLAYER
+  // =========================================================
+
   const getOrCreatePlayer = async () => {
     const phone = form.phone.trim();
     const name = form.name.trim();
@@ -293,6 +689,7 @@ function ReservationForm() {
       if (!response.ok) return null;
 
       const data = await response.json();
+
       return extractPlayer(data);
     };
 
@@ -311,17 +708,18 @@ function ReservationForm() {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ name, phone }),
+      body: JSON.stringify({
+        name,
+        phone,
+      }),
     });
 
     const createData = await createResponse.json().catch(() => ({}));
 
-    if (createResponse.ok && createData.id) {
+    if (createResponse.ok) {
       return createData;
     }
 
-    // Une recherche supplémentaire couvre le cas où le joueur
-    // existe déjà et où le backend refuse sa création.
     try {
       const existingPlayer = await searchPlayer();
 
@@ -329,7 +727,7 @@ function ReservationForm() {
         return existingPlayer;
       }
     } catch (err) {
-      console.warn("Retry player search failed:", err);
+      console.error("Retry player search error:", err);
     }
 
     throw new Error(
@@ -340,34 +738,35 @@ function ReservationForm() {
     );
   };
 
-  // ---------------------------------------------------------
-  // RÉINITIALISER LE FORMULAIRE
-  // ---------------------------------------------------------
+  // =========================================================
+  // RESET FORMULAIRE
+  // =========================================================
+
   const resetReservation = () => {
     setSuccess(false);
     setReservationResult(null);
     setError("");
     setSelectedStations([]);
     setAvailableStations([]);
-    setDateInput("");
-    setHour("");
-    setMinute("");
 
     setForm({
       name: user?.name || "",
       phone: user?.phone || "",
       date: "",
       time: "",
-      duration: "2",
+      duration: 2,
     });
   };
 
-  // ---------------------------------------------------------
+  // =========================================================
   // ENVOYER LA RÉSERVATION
-  // ---------------------------------------------------------
+  // =========================================================
+
   const handleSubmit = async (event) => {
     event.preventDefault();
+
     setError("");
+    setSuccess(false);
 
     if (!form.name.trim()) {
       setError("Please enter your name.");
@@ -379,30 +778,29 @@ function ReservationForm() {
       return;
     }
 
-    const parsedDate = parseDate(dateInput);
-
-    if (!parsedDate || parsedDate !== form.date) {
-      setError("Enter a valid date in DD/MM/YYYY format.");
+    if (!parseLocalDate(form.date)) {
+      setError("Please select a valid reservation date.");
       return;
     }
 
-    if (parsedDate < getLocalDate()) {
+    if (form.date < getLocalDate()) {
       setError("The reservation date cannot be in the past.");
       return;
     }
 
-    if (
-      !form.time ||
-      !/^([01]\d|2[0-3]):([0-5]\d)$/.test(form.time)
-    ) {
+    if (!timeOptions.includes(form.time)) {
       setError("Please select a valid start time.");
       return;
     }
 
     const duration = Number(form.duration);
 
-    if (!Number.isInteger(duration) || duration < 1) {
-      setError("The minimum reservation duration is 1 hour.");
+    if (
+      !Number.isInteger(duration) ||
+      duration < 1 ||
+      duration > 8
+    ) {
+      setError("Please select a duration between 1 and 8 hours.");
       return;
     }
 
@@ -416,70 +814,38 @@ function ReservationForm() {
       return;
     }
 
-    try {
-      setSubmitting(true);
-
-      // Vérifier une dernière fois la disponibilité côté serveur.
-      const params = new URLSearchParams({
-        date: form.date,
-        time: form.time,
-        duration: String(duration),
-      });
-
-      const availabilityResponse = await fetch(
-        `${API_URL}/reservations/availability/?${params.toString()}`
-      );
-
-      const availabilityData = await availabilityResponse
-        .json()
-        .catch(() => ({}));
-
-      if (!availabilityResponse.ok) {
-        throw new Error(
-          availabilityData.detail ||
-            "Unable to verify station availability."
-        );
-      }
-
-      const latestAvailable = Array.isArray(
-        availabilityData.available_stations
-      )
-        ? availabilityData.available_stations
-        : [];
-
-      const allAvailable = selectedStations.every((stationId) =>
-        latestAvailable.some(
+    const allSelectedAreAvailable = selectedStations.every(
+      (stationId) =>
+        availableStations.some(
           (station) => Number(station.id) === Number(stationId)
         )
+    );
+
+    if (!allSelectedAreAvailable) {
+      setError(
+        "One or more selected stations are no longer available. Please check availability again."
       );
+      return;
+    }
 
-      if (!allAvailable) {
-        setAvailableStations(latestAvailable);
-        setSelectedStations((previous) =>
-          previous.filter((stationId) =>
-            latestAvailable.some(
-              (station) => Number(station.id) === Number(stationId)
-            )
-          )
-        );
+    setSubmitting(true);
 
-        throw new Error(
-          "One or more stations are no longer available. Please check your selection."
-        );
-      }
-
+    try {
       const player = await getOrCreatePlayer();
 
       if (!player?.id) {
         throw new Error("Unable to identify the player.");
       }
 
-      // Ne dépend pas de crypto.randomUUID(), qui peut ne pas
-      // être disponible dans certains navigateurs intégrés.
-      const reservationGroup =
-        `GRP-${Date.now().toString(36)}-${Math.random()
-          .toString(36)
-          .slice(2, 7)}`.toUpperCase();
+      const randomId =
+        typeof crypto !== "undefined" &&
+        typeof crypto.randomUUID === "function"
+          ? crypto.randomUUID().replace(/-/g, "")
+          : `${Date.now()}${Math.random().toString(16).slice(2)}`;
+
+      const reservationGroup = `GRP-${randomId
+        .slice(0, 8)
+        .toUpperCase()}`;
 
       const createdReservations = [];
 
@@ -502,9 +868,13 @@ function ReservationForm() {
         const data = await response.json().catch(() => ({}));
 
         if (!response.ok) {
+          console.error("Reservation API error:", data);
+
           throw new Error(
             data.detail ||
               data.station?.[0] ||
+              data.date?.[0] ||
+              data.time?.[0] ||
               "Unable to create reservation."
           );
         }
@@ -534,10 +904,11 @@ function ReservationForm() {
         reservations: createdReservations,
       };
 
-      // La confirmation reste visible même si sessionStorage
-      // est bloqué par le navigateur intégré.
       try {
-        sessionStorage.setItem("nexusReservation", JSON.stringify(result));
+        sessionStorage.setItem(
+          "nexusReservation",
+          JSON.stringify(result)
+        );
       } catch (storageError) {
         console.warn("Session storage unavailable:", storageError);
       }
@@ -547,15 +918,35 @@ function ReservationForm() {
       setSelectedStations([]);
     } catch (err) {
       console.error("Reservation submission error:", err);
-      setError(err.message || "Unable to create the reservation.");
+
+      setError(
+        err.message || "Unable to create the reservation."
+      );
     } finally {
       setSubmitting(false);
     }
   };
 
-  // ---------------------------------------------------------
+  // =========================================================
+  // UTILITAIRES
+  // =========================================================
+
+  const isStationAvailable = (stationId) => {
+    return availableStations.some(
+      (station) => Number(station.id) === Number(stationId)
+    );
+  };
+
+  const isStationSelected = (stationId) => {
+    return selectedStations.some(
+      (id) => Number(id) === Number(stationId)
+    );
+  };
+
+  // =========================================================
   // ÉCRAN DE CONFIRMATION
-  // ---------------------------------------------------------
+  // =========================================================
+
   if (success && reservationResult) {
     return (
       <div className="reservation-form">
@@ -566,9 +957,12 @@ function ReservationForm() {
 
           <div className="reservation-success-header">
             <span>NEXUS GAMES</span>
+
             <h2>
-              RESERVATION <strong>CONFIRMED.</strong>
+              RESERVATION
+              <strong> CONFIRMED.</strong>
             </h2>
+
             <p>
               Your gaming reservation has been successfully created.
             </p>
@@ -600,7 +994,9 @@ function ReservationForm() {
               <CalendarDays size={20} />
               <div>
                 <span>DATE</span>
-                <strong>{reservationResult.date}</strong>
+                <strong>
+                  {formatDateForDisplay(reservationResult.date)}
+                </strong>
               </div>
             </div>
 
@@ -616,7 +1012,10 @@ function ReservationForm() {
               <Clock size={20} />
               <div>
                 <span>DURATION</span>
-                <strong>{reservationResult.duration} HOURS</strong>
+                <strong>
+                  {reservationResult.duration}{" "}
+                  {reservationResult.duration === 1 ? "HOUR" : "HOURS"}
+                </strong>
               </div>
             </div>
 
@@ -669,15 +1068,18 @@ function ReservationForm() {
     );
   }
 
-  // ---------------------------------------------------------
-  // FORMULAIRE PRINCIPAL
-  // ---------------------------------------------------------
+  // =========================================================
+  // FORMULAIRE
+  // =========================================================
+
   return (
     <div className="reservation-form">
       {/* INFORMATIONS DU JOUEUR */}
+
       <div className="reservation-section">
         <div className="reservation-section-header">
           <Users size={22} />
+
           <div>
             <h3>PLAYER INFORMATION</h3>
             <p>Enter your contact information</p>
@@ -687,6 +1089,7 @@ function ReservationForm() {
         <div className="reservation-form-grid">
           <div className="form-group">
             <label htmlFor="name">FULL NAME</label>
+
             <input
               id="name"
               type="text"
@@ -694,13 +1097,14 @@ function ReservationForm() {
               value={form.name}
               onChange={handleChange}
               placeholder="Enter your full name"
-              autoComplete="name"
               disabled={submitting}
+              required
             />
           </div>
 
           <div className="form-group">
             <label htmlFor="phone">PHONE NUMBER</label>
+
             <input
               id="phone"
               type="tel"
@@ -708,17 +1112,19 @@ function ReservationForm() {
               value={form.phone}
               onChange={handleChange}
               placeholder="Enter your phone number"
-              autoComplete="tel"
               disabled={submitting}
+              required
             />
           </div>
         </div>
       </div>
 
       {/* DÉTAILS DE LA RÉSERVATION */}
+
       <div className="reservation-section">
         <div className="reservation-section-header">
           <CalendarDays size={22} />
+
           <div>
             <h3>RESERVATION DETAILS</h3>
             <p>Choose your date, time and duration</p>
@@ -726,111 +1132,85 @@ function ReservationForm() {
         </div>
 
         <div className="reservation-form-grid">
-          {/* DATE MANUELLE */}
+          {/* DATE : CALENDRIER */}
+
           <div className="form-group">
-            <label htmlFor="reservation-date">DATE</label>
-            <input
-              id="reservation-date"
-              type="text"
-              inputMode="numeric"
-              name="dateInput"
-              value={dateInput}
+            <label>DATE</label>
+
+            <ReactDatePicker
+              value={form.date}
               onChange={handleDateChange}
-              placeholder="DD/MM/YYYY"
-              maxLength={10}
-              autoComplete="off"
               disabled={submitting}
-              aria-describedby="date-help"
             />
-            <small
-              id="date-help"
-              style={{
-                color: "rgba(255,255,255,0.55)",
-                fontSize: "11px",
-                marginTop: "4px",
-              }}
-            >
-              Enter the date, for example 25/12/2026
-            </small>
           </div>
 
-          {/* HEURE SANS INPUT TYPE TIME */}
+          {/* START TIME : LISTE DÉROULANTE PAR HEURE */}
+
           <div className="form-group">
-            <label>START TIME</label>
+            <label htmlFor="time">START TIME</label>
 
             <div
               style={{
                 display: "flex",
-                gap: "10px",
                 alignItems: "center",
+                gap: "10px",
               }}
             >
-              <select
-                aria-label="Start hour"
-                value={hour}
-                onChange={(event) =>
-                  updateTime(event.target.value, minute)
-                }
-                disabled={submitting}
-                style={{ flex: 1, minWidth: 0 }}
-              >
-                <option value="">Hour</option>
-                {Array.from({ length: 24 }, (_, index) => (
-                  <option key={index} value={String(index)}>
-                    {pad(index)}
-                  </option>
-                ))}
-              </select>
-
-              <span>:</span>
+              <Clock size={19} color="#ef4444" />
 
               <select
-                aria-label="Start minute"
-                value={minute}
-                onChange={(event) =>
-                  updateTime(hour, event.target.value)
-                }
+                id="time"
+                name="time"
+                value={form.time}
+                onChange={handleChange}
                 disabled={submitting}
-                style={{ flex: 1, minWidth: 0 }}
+                required
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                }}
               >
-                <option value="">Minute</option>
-                {["00", "15", "30", "45"].map((value) => (
-                  <option key={value} value={value}>
-                    {value}
+                <option value="">Select start time</option>
+
+                {timeOptions.map((time) => (
+                  <option key={time} value={time}>
+                    {time}
                   </option>
                 ))}
               </select>
             </div>
-
-            <small
-              style={{
-                color: "rgba(255,255,255,0.55)",
-                fontSize: "11px",
-                marginTop: "4px",
-              }}
-            >
-              Selected time: {form.time || "--:--"}
-            </small>
           </div>
 
-          {/* DURÉE */}
+          {/* DURÉE : 1 HEURE EST DISPONIBLE */}
+
           <div className="form-group">
             <label htmlFor="duration">DURATION</label>
+
             <select
               id="duration"
               name="duration"
               value={form.duration}
               onChange={handleChange}
               disabled={submitting}
+              required
             >
-              {Array.from({ length: 8 }, (_, index) => (
-                <option key={index + 1} value={String(index + 1)}>
-                  {index + 1} HOURS
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((hours) => (
+                <option key={hours} value={hours}>
+                  {hours} {hours === 1 ? "HOUR" : "HOURS"}
                 </option>
               ))}
             </select>
           </div>
         </div>
+
+        {form.date && (
+          <div className="reservation-info">
+            <CalendarDays size={18} />
+            <span>
+              Selected date: {formatDateForDisplay(form.date)}
+            </span>
+          </div>
+        )}
 
         {checkingAvailability && (
           <div className="reservation-info">
@@ -841,12 +1221,17 @@ function ReservationForm() {
       </div>
 
       {/* SÉLECTION DES STATIONS */}
+
       <div className="reservation-section">
         <div className="reservation-section-header">
           <Monitor size={22} />
+
           <div>
             <h3>SELECT YOUR STATIONS</h3>
-            <p>Select between 8 and 10 stations for the same reservation</p>
+            <p>
+              Select between 8 and 10 stations for the same
+              reservation
+            </p>
           </div>
         </div>
 
@@ -854,6 +1239,7 @@ function ReservationForm() {
           <span>
             SELECTED: <strong>{selectedStations.length}/10</strong>
           </span>
+
           <span>
             MINIMUM: <strong>8</strong>
           </span>
@@ -862,17 +1248,26 @@ function ReservationForm() {
         {!form.date || !form.time ? (
           <div className="reservation-info">
             <CalendarDays size={18} />
-            <span>Enter a valid date and select a start time first.</span>
+            <span>
+              Select a reservation date and start time to check
+              availability.
+            </span>
           </div>
         ) : loadingStations ? (
-          <div className="reservation-loading">Loading stations...</div>
+          <div className="reservation-loading">
+            Loading stations...
+          </div>
         ) : stations.length === 0 ? (
           <div className="reservation-empty">
             No gaming stations found.
           </div>
         ) : checkingAvailability ? (
           <div className="reservation-loading">
-            Checking available stations...
+            Checking availability...
+          </div>
+        ) : availableStations.length === 0 ? (
+          <div className="reservation-empty">
+            No stations are available for this date, time and duration.
           </div>
         ) : (
           <div className="stations-grid">
@@ -883,6 +1278,7 @@ function ReservationForm() {
               const disabled =
                 !available ||
                 submitting ||
+                checkingAvailability ||
                 (!selected && selectedStations.length >= 10);
 
               return (
@@ -893,7 +1289,9 @@ function ReservationForm() {
                     selected ? "selected" : ""
                   } ${!available ? "unavailable" : ""}`}
                   onClick={() => {
-                    if (!disabled) toggleStation(station.id);
+                    if (!disabled) {
+                      toggleStation(station.id);
+                    }
                   }}
                   disabled={disabled}
                 >
@@ -923,15 +1321,18 @@ function ReservationForm() {
           </div>
         )}
 
-        {selectedStations.length > 0 && selectedStations.length < 8 && (
-          <div className="reservation-warning">
-            Please select at least <strong>8 stations</strong>.
-            You currently selected <strong>{selectedStations.length}</strong>.
-          </div>
-        )}
+        {selectedStations.length > 0 &&
+          selectedStations.length < 8 && (
+            <div className="reservation-warning">
+              Please select at least <strong>8 stations</strong>.
+              You currently selected{" "}
+              <strong>{selectedStations.length}</strong>.
+            </div>
+          )}
       </div>
 
       {/* ERREUR */}
+
       {error && (
         <div className="reservation-error" role="alert">
           {error}
@@ -939,6 +1340,7 @@ function ReservationForm() {
       )}
 
       {/* RÉSUMÉ */}
+
       <div className="reservation-summary">
         <div className="reservation-summary-row">
           <span>SELECTED STATIONS</span>
@@ -947,21 +1349,28 @@ function ReservationForm() {
 
         <div className="reservation-summary-row">
           <span>DATE</span>
-          <strong>{form.date || "--"}</strong>
+          <strong>
+            {form.date
+              ? formatDateForDisplay(form.date)
+              : "--"}
+          </strong>
         </div>
 
         <div className="reservation-summary-row">
           <span>START TIME</span>
-          <strong>{form.time || "--:--"}</strong>
+          <strong>{form.time || "--"}</strong>
         </div>
 
         <div className="reservation-summary-row">
           <span>DURATION</span>
-          <strong>{form.duration} H</strong>
+          <strong>
+            {form.duration} {form.duration === 1 ? "H" : "H"}
+          </strong>
         </div>
       </div>
 
-      {/* VALIDATION */}
+      {/* BOUTON DE RÉSERVATION */}
+
       <button
         type="button"
         className="reservation-submit-button"
