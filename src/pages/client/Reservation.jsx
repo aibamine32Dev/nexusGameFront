@@ -28,7 +28,7 @@ function Reservation() {
 
           <p>
             The minimum reservation duration is
-            2 hours.
+            1 hour.
           </p>
         </div>
       </div>

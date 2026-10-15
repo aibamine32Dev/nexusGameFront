@@ -10,13 +10,31 @@ import {
   X,
 } from "lucide-react";
 
+const API_URL = "https://nexusgameback.onrender.com/api";
+
+const MIN_PLAYERS = 8;
+const MAX_PLAYERS = 10;
+
+// Créneaux horaires : 00:00, 01:00, ..., 23:00
+const TIME_OPTIONS = Array.from({ length: 24 }, (_, hour) =>
+  `${String(hour).padStart(2, "0")}:00`
+);
+
+const getToday = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
+
+const normalizeNumber = (value, fallback = 0) => {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+};
+
 function MatchMaking() {
-  // =========================================================
-  // API
-  // =========================================================
-
-  const API_URL = "https://nexusgameback.onrender.com/api";
-
   // =========================================================
   // TABS
   // =========================================================
@@ -41,7 +59,7 @@ function MatchMaking() {
   const [matchesError, setMatchesError] = useState("");
 
   // =========================================================
-  // ACTION LOADING
+  // ACTIONS
   // =========================================================
 
   const [actionLoading, setActionLoading] = useState("");
@@ -52,6 +70,7 @@ function MatchMaking() {
 
   const [showJoinForm, setShowJoinForm] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState(null);
+  const [joinError, setJoinError] = useState("");
 
   const [joinForm, setJoinForm] = useState({
     name: "",
@@ -69,11 +88,12 @@ function MatchMaking() {
     game: "",
     date: "",
     time: "",
-    playersNeeded: "2",
+    totalPlayers: "8",
+    accompanyingPlayers: "0",
   });
 
   // =========================================================
-  // GENERIC API REQUEST
+  // API REQUEST
   // =========================================================
 
   const apiRequest = async (url, options = {}) => {
@@ -85,9 +105,7 @@ function MatchMaking() {
       },
     });
 
-    const contentType =
-      response.headers.get("content-type") || "";
-
+    const contentType = response.headers.get("content-type") || "";
     let data = null;
 
     if (contentType.includes("application/json")) {
@@ -103,16 +121,18 @@ function MatchMaking() {
         data,
       });
 
-      let message = `API error ${response.status}`;
+      let message = `Erreur API ${response.status}`;
 
       if (typeof data === "string" && data.trim()) {
-        message = `${message}: ${data.substring(0, 300)}`;
+        message += ` : ${data.substring(0, 300)}`;
       } else if (data && typeof data === "object") {
         message = Object.entries(data)
           .map(([key, value]) => {
             const valueText = Array.isArray(value)
               ? value.join(", ")
-              : String(value);
+              : typeof value === "object" && value !== null
+                ? JSON.stringify(value)
+                : String(value);
 
             return `${key}: ${valueText}`;
           })
@@ -134,25 +154,18 @@ function MatchMaking() {
       setGamesLoading(true);
       setGamesError("");
 
-      const data = await apiRequest(
-        `${API_URL}/games/`
-      );
+      const data = await apiRequest(`${API_URL}/games/`);
 
       setGames(
         Array.isArray(data)
           ? data
-          : data.results || []
+          : Array.isArray(data?.results)
+            ? data.results
+            : []
       );
     } catch (error) {
-      console.error(
-        "Games API error:",
-        error
-      );
-
-      setGamesError(
-        error.message ||
-          "Unable to load games."
-      );
+      console.error("Games API error:", error);
+      setGamesError(error.message || "Impossible de charger les jeux.");
     } finally {
       setGamesLoading(false);
     }
@@ -167,24 +180,19 @@ function MatchMaking() {
       setMatchesLoading(true);
       setMatchesError("");
 
-      const data = await apiRequest(
-        `${API_URL}/matches/open/`
-      );
+      const data = await apiRequest(`${API_URL}/matches/open/`);
 
       setMatches(
         Array.isArray(data)
           ? data
-          : data.results || []
+          : Array.isArray(data?.results)
+            ? data.results
+            : []
       );
     } catch (error) {
-      console.error(
-        "Matches API error:",
-        error
-      );
-
+      console.error("Matches API error:", error);
       setMatchesError(
-        error.message ||
-          "Unable to load open matches."
+        error.message || "Impossible de charger les matchs."
       );
     } finally {
       setMatchesLoading(false);
@@ -204,67 +212,104 @@ function MatchMaking() {
   // AVAILABLE PLATFORMS
   // =========================================================
 
-  const availablePlatforms = useMemo(() => {
-    return [
+  const availablePlatforms = useMemo(
+    () => [
       ...new Set(
         games
           .map((game) => game.platform)
           .filter(Boolean)
       ),
-    ];
-  }, [games]);
+    ],
+    [games]
+  );
 
   // =========================================================
   // FILTER GAMES BY PLATFORM
   // =========================================================
 
   const filteredGames = useMemo(() => {
-    if (!form.platform) {
-      return [];
-    }
+    if (!form.platform) return [];
 
     return games.filter(
-      (game) =>
-        game.platform === form.platform
+      (game) => game.platform === form.platform
     );
   }, [games, form.platform]);
 
   // =========================================================
-  // HANDLE CREATE FORM
+  // AUTOMATIC PLAYER CALCULATION
+  // =========================================================
+
+  const totalPlayers = Number(form.totalPlayers);
+  const accompanyingPlayers = Number(form.accompanyingPlayers);
+
+  // Le créateur compte comme un joueur.
+  const creatorGroupSize = 1 + accompanyingPlayers;
+
+  // Places restant à remplir après inscription du créateur
+  // et de ses accompagnants.
+  const remainingPlayers = totalPlayers - creatorGroupSize;
+
+  // =========================================================
+  // CREATE FORM CHANGE
   // =========================================================
 
   const handleChange = (event) => {
-    const { name, value } =
-      event.target;
+    const { name, value } = event.target;
 
-    if (name === "platform") {
-      setForm((previous) => ({
+    setForm((previous) => {
+      const next = {
         ...previous,
-        platform: value,
-        game: "",
-      }));
+        [name]: value,
+      };
 
-      return;
-    }
+      if (name === "platform") {
+        next.game = "";
+      }
 
-    setForm((previous) => ({
-      ...previous,
-      [name]: value,
-    }));
+      // Le nombre d'accompagnants ne peut pas dépasser
+      // le nombre total de joueurs moins le créateur.
+      if (name === "totalPlayers") {
+        const maxAccompanying = Number(value) - 1;
+
+        if (Number(next.accompanyingPlayers) > maxAccompanying) {
+          next.accompanyingPlayers = String(maxAccompanying);
+        }
+      }
+
+      return next;
+    });
   };
 
   // =========================================================
-  // HANDLE JOIN FORM
+  // JOIN FORM CHANGE
   // =========================================================
 
   const handleJoinChange = (event) => {
-    const { name, value } =
-      event.target;
+    const { name, value } = event.target;
 
     setJoinForm((previous) => ({
       ...previous,
       [name]: value,
     }));
+
+    setJoinError("");
+  };
+
+  // =========================================================
+  // RESET CREATE FORM
+  // =========================================================
+
+  const resetCreateForm = () => {
+    setForm({
+      name: "",
+      phone: "",
+      platform: "",
+      game: "",
+      date: "",
+      time: "",
+      totalPlayers: "8",
+      accompanyingPlayers: "0",
+    });
   };
 
   // =========================================================
@@ -275,101 +320,110 @@ function MatchMaking() {
     event.preventDefault();
 
     const selectedGame = games.find(
-      (game) =>
-        game.id === Number(form.game)
+      (game) => Number(game.id) === Number(form.game)
     );
 
     if (!form.name.trim()) {
-      alert("Please enter your name.");
+      alert("Veuillez saisir le nom du créateur.");
       return;
     }
 
     if (!form.phone.trim()) {
-      alert("Please enter your phone number.");
+      alert("Veuillez saisir le numéro de téléphone.");
       return;
     }
 
     if (!form.platform) {
-      alert("Please select a platform.");
+      alert("Veuillez sélectionner une plateforme.");
       return;
     }
 
     if (!selectedGame) {
-      alert("Please select a game.");
+      alert("Veuillez sélectionner un jeu.");
       return;
     }
 
-    if (!form.date) {
-      alert("Please select a date.");
+    if (!form.date || form.date < getToday()) {
+      alert("Veuillez sélectionner une date valide.");
       return;
     }
 
-    if (!form.time) {
-      alert("Please select a time.");
+    if (!TIME_OPTIONS.includes(form.time)) {
+      alert("Veuillez sélectionner une heure valide.");
       return;
     }
 
+    if (
+      !Number.isInteger(totalPlayers) ||
+      totalPlayers < MIN_PLAYERS ||
+      totalPlayers > MAX_PLAYERS
+    ) {
+      alert("Le match doit compter entre 8 et 10 joueurs.");
+      return;
+    }
+
+    if (
+      !Number.isInteger(accompanyingPlayers) ||
+      accompanyingPlayers < 0 ||
+      accompanyingPlayers > totalPlayers - 1
+    ) {
+      alert("Le nombre d'accompagnants est invalide.");
+      return;
+    }
+
+    if (remainingPlayers < 0) {
+      alert("Le nombre de joueurs est invalide.");
+      return;
+    }
+
+    /*
+     * IMPORTANT :
+     * players_needed représente ici le nombre TOTAL de joueurs
+     * souhaité pour le match, créateur et accompagnants compris.
+     *
+     * accompanying_players est un champ supplémentaire.
+     * Le serializer Django doit accepter ce champ pour que
+     * le backend puisse l'enregistrer.
+     */
     const payload = {
       name: form.name.trim(),
       phone: form.phone.trim(),
-      game: selectedGame.id,
+      game: Number(selectedGame.id),
       platform: form.platform,
       date: form.date,
       time: form.time,
-      players_needed: Number(
-        form.playersNeeded
-      ),
+      players_needed: totalPlayers,
+      accompanying_players: accompanyingPlayers,
     };
 
-    console.log(
-      "Creating match:",
-      payload
-    );
+    console.log("[MATCH CREATE] Payload envoyé :", payload);
+    console.log("[MATCH CREATE] Calcul des joueurs :", {
+      totalPlayers,
+      creator: 1,
+      accompanyingPlayers,
+      remainingPlayers,
+    });
 
     try {
       setActionLoading("create");
 
-      const data = await apiRequest(
-        `${API_URL}/matches/`,
-        {
-          method: "POST",
-          body: JSON.stringify(payload),
-        }
-      );
-
-      console.log(
-        "Match created:",
-        data
-      );
-
-      alert(
-        "Match created successfully."
-      );
-
-      setForm({
-        name: "",
-        phone: "",
-        platform: "",
-        game: "",
-        date: "",
-        time: "",
-        playersNeeded: "2",
+      const data = await apiRequest(`${API_URL}/matches/`, {
+        method: "POST",
+        body: JSON.stringify(payload),
       });
 
+      console.log("[MATCH CREATE] Réponse API :", data);
+
+      alert("Match créé avec succès.");
+
+      resetCreateForm();
       setShowCreateForm(false);
       setActiveTab("find");
 
       await loadOpenMatches();
     } catch (error) {
-      console.error(
-        "Create match error:",
-        error
-      );
-
-      alert(
-        error.message ||
-          "Unable to create match."
-      );
+      console.error("[MATCH CREATE] Erreur :", error);
+      alert(error.message || "Impossible de créer le match.");
     } finally {
       setActionLoading("");
     }
@@ -387,6 +441,7 @@ function MatchMaking() {
       phone: "",
     });
 
+    setJoinError("");
     setShowJoinForm(true);
   };
 
@@ -395,12 +450,11 @@ function MatchMaking() {
   // =========================================================
 
   const closeJoinForm = () => {
-    if (actionLoading.startsWith("join-")) {
-      return;
-    }
+    if (actionLoading.startsWith("join-")) return;
 
     setShowJoinForm(false);
     setSelectedMatch(null);
+    setJoinError("");
 
     setJoinForm({
       name: "",
@@ -416,17 +470,17 @@ function MatchMaking() {
     event.preventDefault();
 
     if (!selectedMatch) {
-      alert("No match selected.");
+      setJoinError("Aucun match sélectionné.");
       return;
     }
 
     if (!joinForm.name.trim()) {
-      alert("Please enter your name.");
+      setJoinError("Veuillez saisir votre nom.");
       return;
     }
 
     if (!joinForm.phone.trim()) {
-      alert("Please enter your phone number.");
+      setJoinError("Veuillez saisir votre numéro de téléphone.");
       return;
     }
 
@@ -437,16 +491,9 @@ function MatchMaking() {
       phone: joinForm.phone.trim(),
     };
 
-    console.log(
-      "Joining match:",
-      matchId,
-      payload
-    );
-
     try {
-      setActionLoading(
-        `join-${matchId}`
-      );
+      setActionLoading(`join-${matchId}`);
+      setJoinError("");
 
       const data = await apiRequest(
         `${API_URL}/matches/${matchId}/join/`,
@@ -456,15 +503,9 @@ function MatchMaking() {
         }
       );
 
-      console.log(
-        "Joined match:",
-        data
-      );
+      console.log("[MATCH JOIN] Réponse API :", data);
 
-      alert(
-        data?.message ||
-          "You joined the match successfully."
-      );
+      alert(data?.message || "Vous avez rejoint le match.");
 
       setShowJoinForm(false);
       setSelectedMatch(null);
@@ -476,15 +517,8 @@ function MatchMaking() {
 
       await loadOpenMatches();
     } catch (error) {
-      console.error(
-        "Join match error:",
-        error
-      );
-
-      alert(
-        error.message ||
-          "Unable to join match."
-      );
+      console.error("[MATCH JOIN] Erreur :", error);
+      setJoinError(error.message || "Impossible de rejoindre le match.");
     } finally {
       setActionLoading("");
     }
@@ -496,33 +530,18 @@ function MatchMaking() {
 
   const confirmMatch = async (matchId) => {
     try {
-      setActionLoading(
-        `confirm-${matchId}`
-      );
+      setActionLoading(`confirm-${matchId}`);
 
       const data = await apiRequest(
         `${API_URL}/matches/${matchId}/confirm/`,
-        {
-          method: "POST",
-        }
+        { method: "POST" }
       );
 
-      alert(
-        data?.message ||
-          "Match confirmed successfully."
-      );
-
+      alert(data?.message || "Match confirmé.");
       await loadOpenMatches();
     } catch (error) {
-      console.error(
-        "Confirm match error:",
-        error
-      );
-
-      alert(
-        error.message ||
-          "Unable to confirm the match."
-      );
+      console.error("[MATCH CONFIRM] Erreur :", error);
+      alert(error.message || "Impossible de confirmer le match.");
     } finally {
       setActionLoading("");
     }
@@ -533,43 +552,23 @@ function MatchMaking() {
   // =========================================================
 
   const cancelMatch = async (matchId) => {
-    const confirmed =
-      window.confirm(
-        "Are you sure you want to cancel this match?"
-      );
-
-    if (!confirmed) {
+    if (!window.confirm("Voulez-vous vraiment annuler ce match ?")) {
       return;
     }
 
     try {
-      setActionLoading(
-        `cancel-${matchId}`
-      );
+      setActionLoading(`cancel-${matchId}`);
 
       const data = await apiRequest(
         `${API_URL}/matches/${matchId}/cancel/`,
-        {
-          method: "POST",
-        }
+        { method: "POST" }
       );
 
-      alert(
-        data?.message ||
-          "Match cancelled successfully."
-      );
-
+      alert(data?.message || "Match annulé.");
       await loadOpenMatches();
     } catch (error) {
-      console.error(
-        "Cancel match error:",
-        error
-      );
-
-      alert(
-        error.message ||
-          "Unable to cancel the match."
-      );
+      console.error("[MATCH CANCEL] Erreur :", error);
+      alert(error.message || "Impossible d'annuler le match.");
     } finally {
       setActionLoading("");
     }
@@ -580,46 +579,60 @@ function MatchMaking() {
   // =========================================================
 
   const completeMatch = async (matchId) => {
-    const confirmed =
-      window.confirm(
-        "Are you sure you want to complete this match?"
-      );
-
-    if (!confirmed) {
+    if (!window.confirm("Voulez-vous terminer ce match ?")) {
       return;
     }
 
     try {
-      setActionLoading(
-        `complete-${matchId}`
-      );
+      setActionLoading(`complete-${matchId}`);
 
       const data = await apiRequest(
         `${API_URL}/matches/${matchId}/complete/`,
-        {
-          method: "POST",
-        }
+        { method: "POST" }
       );
 
-      alert(
-        data?.message ||
-          "Match completed successfully."
-      );
-
+      alert(data?.message || "Match terminé.");
       await loadOpenMatches();
     } catch (error) {
-      console.error(
-        "Complete match error:",
-        error
-      );
-
-      alert(
-        error.message ||
-          "Unable to complete the match."
-      );
+      console.error("[MATCH COMPLETE] Erreur :", error);
+      alert(error.message || "Impossible de terminer le match.");
     } finally {
       setActionLoading("");
     }
+  };
+
+  // =========================================================
+  // MATCH PLAYER COUNTS
+  // =========================================================
+
+  const getMatchCounts = (match) => {
+    const needed = normalizeNumber(
+      match.players_needed ?? match.playersNeeded,
+      MIN_PLAYERS
+    );
+
+    const joined = normalizeNumber(
+      match.players_joined ?? match.playersJoined,
+      0
+    );
+
+    const companions = normalizeNumber(
+      match.accompanying_players ?? match.accompanyingPlayers,
+      0
+    );
+
+    /*
+     * Le backend doit retourner players_joined avec le créateur
+     * et les accompagnants déjà comptabilisés pour obtenir un
+     * décompte exact. On n'ajoute donc pas les accompagnants ici.
+     */
+    return {
+      needed,
+      joined,
+      companions,
+      full: joined >= needed,
+      remaining: Math.max(0, needed - joined),
+    };
   };
 
   // =========================================================
@@ -632,44 +645,33 @@ function MatchMaking() {
       {/* HEADER */}
 
       <div className="matchmaking-header">
-
         <div>
-          <span>
-            NEXUS MATCHMAKING
-          </span>
+          <span>NEXUS MATCHMAKING</span>
 
           <h1>
             FIND YOUR
             <br />
-            <strong>
-              OPPONENT.
-            </strong>
+            <strong>OPPONENT.</strong>
           </h1>
 
           <p>
-            Create a match and invite
-            other players to join your
-            session, or find an existing
-            match and join the competition.
+            Create a match, invite your friends, or join an existing
+            session and compete with other players.
           </p>
         </div>
 
         <div className="matchmaking-header-icon">
           <Users size={60} />
         </div>
-
       </div>
 
       {/* TABS */}
 
       <div className="matchmaking-tabs">
-
         <button
           type="button"
           className={`matchmaking-tab ${
-            activeTab === "find"
-              ? "active"
-              : ""
+            activeTab === "find" ? "active" : ""
           }`}
           onClick={() => {
             setActiveTab("find");
@@ -684,9 +686,7 @@ function MatchMaking() {
         <button
           type="button"
           className={`matchmaking-tab ${
-            activeTab === "create"
-              ? "active"
-              : ""
+            activeTab === "create" ? "active" : ""
           }`}
           onClick={() => {
             setActiveTab("create");
@@ -696,7 +696,6 @@ function MatchMaking() {
           <Plus size={17} />
           CREATE A MATCH
         </button>
-
       </div>
 
       <div className="matchmaking-content">
@@ -707,19 +706,12 @@ function MatchMaking() {
 
         {activeTab === "find" && (
           <div>
-
             <div className="matchmaking-section-header">
-
               <div>
-                <span>
-                  AVAILABLE NOW
-                </span>
+                <span>AVAILABLE NOW</span>
 
                 <h2>
-                  OPEN{" "}
-                  <strong>
-                    MATCHES
-                  </strong>
+                  OPEN <strong>MATCHES</strong>
                 </h2>
               </div>
 
@@ -734,57 +726,38 @@ function MatchMaking() {
                 <Plus size={18} />
                 CREATE MATCH
               </button>
-
             </div>
-
-            {/* LOADING */}
 
             {matchesLoading && (
               <div className="matchmaking-empty">
-                <p>
-                  LOADING MATCHES...
-                </p>
+                <p>LOADING MATCHES...</p>
               </div>
             )}
 
-            {/* ERROR */}
+            {!matchesLoading && matchesError && (
+              <div className="matchmaking-empty">
+                <p>{matchesError}</p>
 
-            {!matchesLoading &&
-              matchesError && (
-                <div className="matchmaking-empty">
-
-                  <p>
-                    {matchesError}
-                  </p>
-
-                  <button
-                    type="button"
-                    className="primary-button"
-                    onClick={loadOpenMatches}
-                  >
-                    RETRY
-                  </button>
-
-                </div>
-              )}
-
-            {/* EMPTY */}
+                <button
+                  type="button"
+                  className="primary-button"
+                  onClick={loadOpenMatches}
+                >
+                  RETRY
+                </button>
+              </div>
+            )}
 
             {!matchesLoading &&
               !matchesError &&
               matches.length === 0 && (
                 <div className="matchmaking-empty">
-
                   <Users size={45} />
 
-                  <h3>
-                    NO OPEN MATCHES
-                  </h3>
+                  <h3>NO OPEN MATCHES</h3>
 
                   <p>
-                    Be the first player
-                    to create a
-                    matchmaking session.
+                    Be the first player to create a matchmaking session.
                   </p>
 
                   <button
@@ -798,149 +771,89 @@ function MatchMaking() {
                     <Plus size={18} />
                     CREATE A MATCH
                   </button>
-
                 </div>
               )}
-
-            {/* MATCHES */}
 
             {!matchesLoading &&
               !matchesError &&
               matches.length > 0 && (
-
                 <div className="matchmaking-list">
+                  {matches.map((match) => {
+                    const gameName =
+                      match.game_name ||
+                      match.game?.name ||
+                      "Unknown game";
 
-                  {matches.map(
-                    (match) => {
+                    const playerName =
+                      match.player_name ||
+                      match.creator_name ||
+                      match.creatorName ||
+                      "Player";
 
-                      const gameName =
-                        match.game_name ||
-                        match.game?.name ||
-                        "Unknown game";
+                    const counts = getMatchCounts(match);
 
-                      const playerName =
-                        match.player_name ||
-                        match.creator_name ||
-                        match.creatorName ||
-                        "Player";
+                    const isJoining =
+                      actionLoading === `join-${match.id}`;
 
-                      const playersJoined =
-                        match.players_joined ??
-                        match.playersJoined ??
-                        0;
-
-                      const playersNeeded =
-                        match.players_needed ??
-                        match.playersNeeded ??
-                        2;
-
-                      const isFull =
-                        Number(playersJoined) >=
-                        Number(playersNeeded);
-
-                      return (
-                        <div
-                          className="match-card"
-                          key={match.id}
-                        >
-
-                          {/* MAIN */}
-
-                          <div className="match-card-main">
-
-                            <div className="match-game-icon">
-                              <Gamepad2 size={27} />
-                            </div>
-
-                            <div className="match-card-info">
-
-                              <span>
-                                {match.platform}
-                              </span>
-
-                              <h3>
-                                {gameName}
-                              </h3>
-
-                              <p>
-                                Created by{" "}
-                                <strong>
-                                  {playerName}
-                                </strong>
-                              </p>
-
-                            </div>
-
+                    return (
+                      <div className="match-card" key={match.id}>
+                        <div className="match-card-main">
+                          <div className="match-game-icon">
+                            <Gamepad2 size={27} />
                           </div>
 
-                          {/* DETAILS */}
+                          <div className="match-card-info">
+                            <span>{match.platform}</span>
 
-                          <div className="match-card-details">
+                            <h3>{gameName}</h3>
 
-                            <div>
-                              <Calendar size={15} />
+                            <p>
+                              Created by{" "}
+                              <strong>{playerName}</strong>
+                            </p>
+                          </div>
+                        </div>
 
-                              <span>
-                                {match.date || "-"}
-                              </span>
-                            </div>
-
-                            <div>
-                              <Clock size={15} />
-
-                              <span>
-                                {match.time || "-"}
-                              </span>
-                            </div>
-
-                            <div>
-                              <Users size={15} />
-
-                              <span>
-                                {playersJoined}
-                                /
-                                {playersNeeded}
-                              </span>
-                            </div>
-
+                        <div className="match-card-details">
+                          <div>
+                            <Calendar size={15} />
+                            <span>{match.date || "-"}</span>
                           </div>
 
-                          {/* ACTION */}
+                          <div>
+                            <Clock size={15} />
+                            <span>{match.time || "-"}</span>
+                          </div>
 
-                          <div className="match-card-action">
+                          <div>
+                            <Users size={15} />
+                            <span>
+                              {counts.joined}/{counts.needed} PLAYERS
+                            </span>
+                          </div>
+                        </div>
 
-                            <button
-                              type="button"
-                              className="primary-button"
-                              disabled={
-                                isFull ||
-                                actionLoading ===
-                                  `join-${match.id}`
-                              }
-                              onClick={() =>
-                                openJoinForm(match)
-                              }
-                            >
-                              <Users size={17} />
+                        <div className="match-card-action">
+                          <button
+                            type="button"
+                            className="primary-button"
+                            disabled={counts.full || isJoining}
+                            onClick={() => openJoinForm(match)}
+                          >
+                            <Users size={17} />
 
-                              {isFull
-                                ? "MATCH FULL"
-                                : actionLoading ===
-                                  `join-${match.id}`
+                            {counts.full
+                              ? "MATCH FULL"
+                              : isJoining
                                 ? "JOINING..."
                                 : "JOIN MATCH"}
-                            </button>
-
-                          </div>
-
+                          </button>
                         </div>
-                      );
-                    }
-                  )}
-
+                      </div>
+                    );
+                  })}
                 </div>
               )}
-
           </div>
         )}
 
@@ -948,470 +861,472 @@ function MatchMaking() {
             CREATE MATCH
         =================================================== */}
 
-        {activeTab === "create" &&
-          showCreateForm && (
+        {activeTab === "create" && showCreateForm && (
+          <div className="matchmaking-create">
+            <div className="matchmaking-section-header">
+              <div>
+                <span>NEW SESSION</span>
 
-            <div className="matchmaking-create">
-
-              <div className="matchmaking-section-header">
-
-                <div>
-                  <span>
-                    NEW SESSION
-                  </span>
-
-                  <h2>
-                    CREATE{" "}
-                    <strong>
-                      MATCH
-                    </strong>
-                  </h2>
-                </div>
-
-                <button
-                  type="button"
-                  className="matchmaking-close-button"
-                  onClick={() => {
-                    setShowCreateForm(false);
-                    setActiveTab("find");
-                  }}
-                >
-                  <X size={17} />
-                  CANCEL
-                </button>
-
+                <h2>
+                  CREATE <strong>MATCH</strong>
+                </h2>
               </div>
 
-              {/* GAMES LOADING */}
-
-              {gamesLoading && (
-                <p>
-                  LOADING GAMES...
-                </p>
-              )}
-
-              {/* GAMES ERROR */}
-
-              {!gamesLoading &&
-                gamesError && (
-                  <p>
-                    {gamesError}
-                  </p>
-                )}
-
-              {/* NO GAMES */}
-
-              {!gamesLoading &&
-                !gamesError &&
-                games.length === 0 && (
-                  <p>
-                    No games are available.
-                  </p>
-                )}
-
-              {/* FORM */}
-
-              {!gamesLoading &&
-                !gamesError &&
-                games.length > 0 && (
-
-                  <form
-                    className="matchmaking-form"
-                    onSubmit={createMatch}
-                  >
-
-                    {/* NAME */}
-
-                    <div className="matchmaking-form-group">
-
-                      <label>
-                        PLAYER NAME
-                      </label>
-
-                      <input
-                        type="text"
-                        name="name"
-                        value={form.name}
-                        onChange={handleChange}
-                        placeholder="Enter your name"
-                        required
-                      />
-
-                    </div>
-
-                    {/* PHONE */}
-
-                    <div className="matchmaking-form-group">
-
-                      <label>
-                        PHONE NUMBER
-                      </label>
-
-                      <input
-                        type="tel"
-                        name="phone"
-                        value={form.phone}
-                        onChange={handleChange}
-                        placeholder="Enter your phone"
-                        required
-                      />
-
-                    </div>
-
-                    {/* PLATFORM */}
-
-                    <div className="matchmaking-form-group">
-
-                      <label>
-                        PLATFORM
-                      </label>
-
-                      <select
-                        name="platform"
-                        value={form.platform}
-                        onChange={handleChange}
-                        required
-                      >
-
-                        <option value="">
-                          SELECT PLATFORM
-                        </option>
-
-                        {availablePlatforms.map(
-                          (platform) => (
-                            <option
-                              key={platform}
-                              value={platform}
-                            >
-                              {platform}
-                            </option>
-                          )
-                        )}
-
-                      </select>
-
-                    </div>
-
-                    {/* GAME */}
-
-                    <div className="matchmaking-form-group">
-
-                      <label>
-                        GAME
-                      </label>
-
-                      <select
-                        name="game"
-                        value={form.game}
-                        onChange={handleChange}
-                        disabled={!form.platform}
-                        required
-                      >
-
-                        <option value="">
-                          {!form.platform
-                            ? "SELECT PLATFORM FIRST"
-                            : "SELECT GAME"}
-                        </option>
-
-                        {filteredGames.map(
-                          (game) => (
-                            <option
-                              key={game.id}
-                              value={game.id}
-                            >
-                              {game.name}
-                            </option>
-                          )
-                        )}
-
-                      </select>
-
-                    </div>
-
-                    {/* DATE */}
-
-                    <div className="matchmaking-form-group">
-
-                      <label>
-                        DATE
-                      </label>
-
-                      <input
-                        type="date"
-                        name="date"
-                        value={form.date}
-                        onChange={handleChange}
-                        required
-                      />
-
-                    </div>
-
-                    {/* TIME */}
-
-                    <div className="matchmaking-form-group">
-
-                      <label>
-                        TIME
-                      </label>
-
-                      <input
-                        type="time"
-                        name="time"
-                        value={form.time}
-                        onChange={handleChange}
-                        required
-                      />
-
-                    </div>
-
-                    {/* PLAYERS */}
-
-                    <div className="matchmaking-form-group">
-
-                      <label>
-                        PLAYERS NEEDED
-                      </label>
-
-                      <select
-                        name="playersNeeded"
-                        value={form.playersNeeded}
-                        onChange={handleChange}
-                        required
-                      >
-
-                        <option value="2">
-                          2 PLAYERS
-                        </option>
-
-                        <option value="3">
-                          3 PLAYERS
-                        </option>
-
-                        <option value="4">
-                          4 PLAYERS
-                        </option>
-
-                        <option value="5">
-                          5 PLAYERS
-                        </option>
-
-                        <option value="6">
-                          6 PLAYERS
-                        </option>
-
-                      </select>
-
-                    </div>
-
-                    {/* SUBMIT */}
-
-                    <div className="matchmaking-form-footer">
-
-                      <button
-                        type="submit"
-                        className="primary-button"
-                        disabled={
-                          !form.platform ||
-                          !form.game ||
-                          actionLoading ===
-                            "create"
-                        }
-                      >
-
-                        <Plus size={18} />
-
-                        {actionLoading ===
-                        "create"
-                          ? "CREATING..."
-                          : "CREATE MATCH"}
-
-                      </button>
-
-                    </div>
-
-                  </form>
-                )}
-
+              <button
+                type="button"
+                className="matchmaking-close-button"
+                onClick={() => {
+                  setShowCreateForm(false);
+                  setActiveTab("find");
+                }}
+              >
+                <X size={17} />
+                CANCEL
+              </button>
             </div>
-          )}
 
+            {gamesLoading && <p>LOADING GAMES...</p>}
+
+            {!gamesLoading && gamesError && <p>{gamesError}</p>}
+
+            {!gamesLoading &&
+              !gamesError &&
+              games.length === 0 && <p>No games are available.</p>}
+
+            {!gamesLoading && !gamesError && games.length > 0 && (
+              <form className="matchmaking-form" onSubmit={createMatch}>
+
+                {/* PLAYER NAME */}
+
+                <div className="matchmaking-form-group">
+                  <label htmlFor="match-name">PLAYER NAME</label>
+
+                  <input
+                    id="match-name"
+                    type="text"
+                    name="name"
+                    value={form.name}
+                    onChange={handleChange}
+                    placeholder="Enter your name"
+                    required
+                    disabled={actionLoading === "create"}
+                  />
+                </div>
+
+                {/* PHONE */}
+
+                <div className="matchmaking-form-group">
+                  <label htmlFor="match-phone">PHONE NUMBER</label>
+
+                  <input
+                    id="match-phone"
+                    type="tel"
+                    name="phone"
+                    value={form.phone}
+                    onChange={handleChange}
+                    placeholder="Enter your phone"
+                    required
+                    disabled={actionLoading === "create"}
+                  />
+                </div>
+
+                {/* PLATFORM */}
+
+                <div className="matchmaking-form-group">
+                  <label htmlFor="match-platform">PLATFORM</label>
+
+                  <select
+                    id="match-platform"
+                    name="platform"
+                    value={form.platform}
+                    onChange={handleChange}
+                    required
+                    disabled={actionLoading === "create"}
+                  >
+                    <option value="">SELECT PLATFORM</option>
+
+                    {availablePlatforms.map((platform) => (
+                      <option key={platform} value={platform}>
+                        {platform}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* GAME */}
+
+                <div className="matchmaking-form-group">
+                  <label htmlFor="match-game">GAME</label>
+
+                  <select
+                    id="match-game"
+                    name="game"
+                    value={form.game}
+                    onChange={handleChange}
+                    disabled={!form.platform || actionLoading === "create"}
+                    required
+                  >
+                    <option value="">
+                      {!form.platform
+                        ? "SELECT PLATFORM FIRST"
+                        : "SELECT GAME"}
+                    </option>
+
+                    {filteredGames.map((game) => (
+                      <option key={game.id} value={game.id}>
+                        {game.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* DATE */}
+
+                <div className="matchmaking-form-group">
+                  <label htmlFor="match-date">DATE</label>
+
+                  <input
+                    id="match-date"
+                    type="date"
+                    name="date"
+                    value={form.date}
+                    min={getToday()}
+                    onChange={handleChange}
+                    required
+                    disabled={actionLoading === "create"}
+                  />
+                </div>
+
+                {/* TIME : HOURLY OPTIONS */}
+
+                <div className="matchmaking-form-group">
+                  <label htmlFor="match-time">START TIME</label>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "10px",
+                    }}
+                  >
+                    <Clock size={19} color="#ef4444" />
+
+                    <select
+                      id="match-time"
+                      name="time"
+                      value={form.time}
+                      onChange={handleChange}
+                      required
+                      disabled={actionLoading === "create"}
+                      style={{ flex: 1, minWidth: 0 }}
+                    >
+                      <option value="">SELECT START TIME</option>
+
+                      {TIME_OPTIONS.map((time) => (
+                        <option key={time} value={time}>
+                          {time}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* TOTAL PLAYERS */}
+
+                <div className="matchmaking-form-group">
+                  <label htmlFor="totalPlayers">
+                    TOTAL PLAYERS (8–10)
+                  </label>
+
+                  <select
+                    id="totalPlayers"
+                    name="totalPlayers"
+                    value={form.totalPlayers}
+                    onChange={handleChange}
+                    required
+                    disabled={actionLoading === "create"}
+                  >
+                    <option value="8">8 PLAYERS</option>
+                    <option value="9">9 PLAYERS</option>
+                    <option value="10">10 PLAYERS</option>
+                  </select>
+                </div>
+
+                {/* ACCOMPANYING PLAYERS */}
+
+                <div className="matchmaking-form-group">
+                  <label htmlFor="accompanyingPlayers">
+                    PLAYERS COMING WITH YOU
+                  </label>
+
+                  <select
+                    id="accompanyingPlayers"
+                    name="accompanyingPlayers"
+                    value={form.accompanyingPlayers}
+                    onChange={handleChange}
+                    required
+                    disabled={actionLoading === "create"}
+                  >
+                    {Array.from(
+                      { length: totalPlayers },
+                      (_, index) => index
+                    ).map((number) => (
+                      <option key={number} value={number}>
+                        {number} {number === 1 ? "PLAYER" : "PLAYERS"}
+                      </option>
+                    ))}
+                  </select>
+
+                  <small>
+                    The creator is automatically counted as one player.
+                  </small>
+                </div>
+
+                {/* AUTOMATIC CALCULATION */}
+
+                <div
+                  className="matchmaking-player-summary"
+                  style={{
+                    gridColumn: "1 / -1",
+                    padding: "18px",
+                    border: "1px solid rgba(239,68,68,0.35)",
+                    borderRadius: "10px",
+                    background: "rgba(239,68,68,0.06)",
+                    color: "#fff",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: "12px",
+                      marginBottom: "12px",
+                    }}
+                  >
+                    <span>Total players planned</span>
+                    <strong>{totalPlayers}</strong>
+                  </div>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: "12px",
+                      marginBottom: "12px",
+                    }}
+                  >
+                    <span>Creator</span>
+                    <strong>1</strong>
+                  </div>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: "12px",
+                      marginBottom: "12px",
+                    }}
+                  >
+                    <span>Accompanying players</span>
+                    <strong>{accompanyingPlayers}</strong>
+                  </div>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: "12px",
+                      paddingTop: "12px",
+                      borderTop: "1px solid rgba(255,255,255,0.12)",
+                    }}
+                  >
+                    <span>Players still needed</span>
+
+                    <strong style={{ color: "#ef4444" }}>
+                      {remainingPlayers}
+                    </strong>
+                  </div>
+
+                  <p
+                    style={{
+                      margin: "12px 0 0",
+                      fontSize: "12px",
+                      color: "#aaa",
+                    }}
+                  >
+                    {remainingPlayers === 0
+                      ? "Your group already reaches the planned number of players."
+                      : `${remainingPlayers} more ${
+                          remainingPlayers === 1 ? "player is" : "players are"
+                        } needed to complete the match.`}
+                  </p>
+                </div>
+
+                {/* SUBMIT */}
+
+                <div className="matchmaking-form-footer">
+                  <button
+                    type="submit"
+                    className="primary-button"
+                    disabled={
+                      !form.platform ||
+                      !form.game ||
+                      !form.date ||
+                      !form.time ||
+                      actionLoading === "create"
+                    }
+                  >
+                    <Plus size={18} />
+
+                    {actionLoading === "create"
+                      ? "CREATING..."
+                      : "CREATE MATCH"}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        )}
       </div>
 
       {/* =====================================================
           JOIN MATCH MODAL
       ===================================================== */}
 
-      {showJoinForm &&
-        selectedMatch && (
+      {showJoinForm && selectedMatch && (
+        <div className="matchmaking-modal-overlay">
+          <div className="matchmaking-modal">
+            <div className="matchmaking-modal-header">
+              <div>
+                <span>JOIN SESSION</span>
 
-          <div className="matchmaking-modal-overlay">
+                <h2>
+                  JOIN <strong>MATCH</strong>
+                </h2>
+              </div>
 
-            <div className="matchmaking-modal">
+              <button
+                type="button"
+                className="matchmaking-close-button"
+                onClick={closeJoinForm}
+                disabled={actionLoading.startsWith("join-")}
+              >
+                <X size={17} />
+              </button>
+            </div>
 
-              <div className="matchmaking-modal-header">
+            {/* MATCH INFORMATION */}
 
-                <div>
-                  <span>
-                    JOIN SESSION
-                  </span>
+            <div className="matchmaking-join-info">
+              <div>
+                <Gamepad2 size={20} />
 
-                  <h2>
-                    JOIN{" "}
-                    <strong>
-                      MATCH
-                    </strong>
-                  </h2>
+                <span>
+                  {selectedMatch.game_name ||
+                    selectedMatch.game?.name ||
+                    "Unknown game"}
+                </span>
+              </div>
+
+              <div>
+                <Users size={20} />
+
+                <span>
+                  {getMatchCounts(selectedMatch).joined}/
+                  {getMatchCounts(selectedMatch).needed} PLAYERS
+                </span>
+              </div>
+
+              <div>
+                <Calendar size={20} />
+
+                <span>{selectedMatch.date || "-"}</span>
+              </div>
+
+              <div>
+                <Clock size={20} />
+
+                <span>{selectedMatch.time || "-"}</span>
+              </div>
+            </div>
+
+            <form className="matchmaking-form" onSubmit={joinMatch}>
+              <div className="matchmaking-form-group">
+                <label htmlFor="join-name">PLAYER NAME</label>
+
+                <input
+                  id="join-name"
+                  type="text"
+                  name="name"
+                  value={joinForm.name}
+                  onChange={handleJoinChange}
+                  placeholder="Enter your name"
+                  required
+                  disabled={actionLoading.startsWith("join-")}
+                />
+              </div>
+
+              <div className="matchmaking-form-group">
+                <label htmlFor="join-phone">PHONE NUMBER</label>
+
+                <input
+                  id="join-phone"
+                  type="tel"
+                  name="phone"
+                  value={joinForm.phone}
+                  onChange={handleJoinChange}
+                  placeholder="Enter your phone"
+                  required
+                  disabled={actionLoading.startsWith("join-")}
+                />
+              </div>
+
+              {joinError && (
+                <div
+                  className="matchmaking-error"
+                  role="alert"
+                  style={{
+                    gridColumn: "1 / -1",
+                    color: "#ef4444",
+                    fontSize: "13px",
+                  }}
+                >
+                  {joinError}
                 </div>
+              )}
 
+              <div className="matchmaking-form-footer">
                 <button
                   type="button"
                   className="matchmaking-close-button"
                   onClick={closeJoinForm}
-                  disabled={
-                    actionLoading.startsWith(
-                      "join-"
-                    )
-                  }
+                  disabled={actionLoading.startsWith("join-")}
                 >
-                  <X size={17} />
+                  CANCEL
                 </button>
 
+                <button
+                  type="submit"
+                  className="primary-button"
+                  disabled={
+                    !joinForm.name.trim() ||
+                    !joinForm.phone.trim() ||
+                    actionLoading === `join-${selectedMatch.id}`
+                  }
+                >
+                  <Users size={18} />
+
+                  {actionLoading === `join-${selectedMatch.id}`
+                    ? "JOINING..."
+                    : "JOIN MATCH"}
+                </button>
               </div>
-
-              {/* MATCH INFORMATION */}
-
-              <div className="matchmaking-join-info">
-
-                <div>
-                  <Gamepad2 size={20} />
-
-                  <span>
-                    {selectedMatch.game_name ||
-                      selectedMatch.game?.name ||
-                      "Unknown game"}
-                  </span>
-                </div>
-
-                <div>
-                  <Users size={20} />
-
-                  <span>
-                    {selectedMatch.players_joined ??
-                      0}
-                    /
-                    {selectedMatch.players_needed ??
-                      2}
-                    {" "}PLAYERS
-                  </span>
-                </div>
-
-              </div>
-
-              {/* JOIN FORM */}
-
-              <form
-                className="matchmaking-form"
-                onSubmit={joinMatch}
-              >
-
-                {/* NAME */}
-
-                <div className="matchmaking-form-group">
-
-                  <label>
-                    PLAYER NAME
-                  </label>
-
-                  <input
-                    type="text"
-                    name="name"
-                    value={joinForm.name}
-                    onChange={handleJoinChange}
-                    placeholder="Enter your name"
-                    required
-                    disabled={
-                      actionLoading.startsWith(
-                        "join-"
-                      )
-                    }
-                  />
-
-                </div>
-
-                {/* PHONE */}
-
-                <div className="matchmaking-form-group">
-
-                  <label>
-                    PHONE NUMBER
-                  </label>
-
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={joinForm.phone}
-                    onChange={handleJoinChange}
-                    placeholder="Enter your phone"
-                    required
-                    disabled={
-                      actionLoading.startsWith(
-                        "join-"
-                      )
-                    }
-                  />
-
-                </div>
-
-                {/* BUTTONS */}
-
-                <div className="matchmaking-form-footer">
-
-                  <button
-                    type="button"
-                    className="matchmaking-close-button"
-                    onClick={closeJoinForm}
-                    disabled={
-                      actionLoading.startsWith(
-                        "join-"
-                      )
-                    }
-                  >
-                    CANCEL
-                  </button>
-
-                  <button
-                    type="submit"
-                    className="primary-button"
-                    disabled={
-                      !joinForm.name.trim() ||
-                      !joinForm.phone.trim() ||
-                      actionLoading ===
-                        `join-${selectedMatch.id}`
-                    }
-                  >
-
-                    <Users size={18} />
-
-                    {actionLoading ===
-                    `join-${selectedMatch.id}`
-                      ? "JOINING..."
-                      : "JOIN MATCH"}
-
-                  </button>
-
-                </div>
-
-              </form>
-
-            </div>
-
+            </form>
           </div>
-        )}
-
+        </div>
+      )}
     </section>
   );
 }
 
 export default MatchMaking;
-

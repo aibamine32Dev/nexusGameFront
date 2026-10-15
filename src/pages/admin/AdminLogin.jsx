@@ -14,7 +14,7 @@ function AdminLogin() {
 
     // TEMPORARY FRONTEND LOGIN
     // Replace this with backend authentication later.
-    if (password === "admin123") {
+    if (password === "NexusGames@159753") {
       localStorage.setItem("nexusAdminAuth", "true");
       navigate("/admin/dashboard");
     } else {

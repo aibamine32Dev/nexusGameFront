@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -12,21 +13,24 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  Banknote,
 } from "lucide-react";
 
 const API_URL = "https://nexusgameback.onrender.com/api";
+const PLAYER_DEBUG = "[NEXUS PLAYER DEBUG]";
+
+// Prix fixe d'une station pour une heure
+const STATION_PRICE_PER_HOUR = 150;
 
 // =========================================================
-// DATE LOCALE : SANS CONVERSION UTC
+// UTILITAIRES DATE LOCALE : SANS CONVERSION UTC
 // =========================================================
 
 const getLocalDate = () => {
   const now = new Date();
-
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, "0");
   const day = String(now.getDate()).padStart(2, "0");
-
   return `${year}-${month}-${day}`;
 };
 
@@ -51,7 +55,6 @@ const parseLocalDate = (dateString) => {
 
 const formatDateForDisplay = (dateString) => {
   const date = parseLocalDate(dateString);
-
   if (!date) return "";
 
   return new Intl.DateTimeFormat("fr-FR", {
@@ -62,35 +65,41 @@ const formatDateForDisplay = (dateString) => {
   }).format(date);
 };
 
-const getMonthName = (date) => {
-  return new Intl.DateTimeFormat("fr-FR", {
+const getMonthName = (date) =>
+  new Intl.DateTimeFormat("fr-FR", {
     month: "long",
     year: "numeric",
   }).format(date);
-};
 
 const toDateKey = (date) => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
-
   return `${year}-${month}-${day}`;
 };
+
+const normalizePlayerName = (name) =>
+  String(name ?? "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLocaleLowerCase("fr");
+
+// =========================================================
+// FORMATAGE PRIX
+// =========================================================
+
+const formatPrice = (amount) =>
+  `${Number(amount || 0).toLocaleString("fr-FR")} DA`;
 
 // =========================================================
 // CALENDRIER REACT PERSONNALISÉ
 // =========================================================
 
-function ReactDatePicker({
-  value,
-  onChange,
-  disabled = false,
-}) {
+function ReactDatePicker({ value, onChange, disabled = false }) {
   const [isOpen, setIsOpen] = useState(false);
-
-  const [viewDate, setViewDate] = useState(() => {
-    return parseLocalDate(value) || new Date();
-  });
+  const [viewDate, setViewDate] = useState(
+    () => parseLocalDate(value) || new Date()
+  );
 
   const today = getLocalDate();
 
@@ -108,7 +117,6 @@ function ReactDatePicker({
 
   // Lundi = 0, dimanche = 6
   const startingDay = (firstDay.getDay() + 6) % 7;
-
   const calendarDays = [];
 
   for (let i = 0; i < startingDay; i++) {
@@ -120,22 +128,21 @@ function ReactDatePicker({
   }
 
   const changeMonth = (offset) => {
-    setViewDate((previous) => {
-      return new Date(
-        previous.getFullYear(),
-        previous.getMonth() + offset,
-        1
-      );
-    });
+    setViewDate(
+      (previous) =>
+        new Date(
+          previous.getFullYear(),
+          previous.getMonth() + offset,
+          1
+        )
+    );
   };
 
   const openCalendar = () => {
     if (disabled) return;
 
     setViewDate(
-      parseLocalDate(value) ||
-        parseLocalDate(today) ||
-        new Date()
+      parseLocalDate(value) || parseLocalDate(today) || new Date()
     );
 
     setIsOpen((previous) => !previous);
@@ -152,9 +159,7 @@ function ReactDatePicker({
 
     const selectedKey = toDateKey(selected);
 
-    if (selectedKey < getLocalDate()) {
-      return;
-    }
+    if (selectedKey < getLocalDate()) return;
 
     onChange(selectedKey);
     setIsOpen(false);
@@ -163,10 +168,7 @@ function ReactDatePicker({
   return (
     <div
       className="react-date-picker"
-      style={{
-        position: "relative",
-        width: "100%",
-      }}
+      style={{ position: "relative", width: "100%" }}
     >
       <button
         type="button"
@@ -203,9 +205,7 @@ function ReactDatePicker({
           <CalendarDays size={19} color="#ef4444" />
 
           <span>
-            {value
-              ? formatDateForDisplay(value)
-              : "Choisir une date"}
+            {value ? formatDateForDisplay(value) : "Choisir une date"}
           </span>
         </span>
 
@@ -255,10 +255,7 @@ function ReactDatePicker({
             </button>
 
             <strong
-              style={{
-                textTransform: "capitalize",
-                fontSize: "14px",
-              }}
+              style={{ textTransform: "capitalize", fontSize: "14px" }}
             >
               {getMonthName(viewDate)}
             </strong>
@@ -281,21 +278,19 @@ function ReactDatePicker({
               marginBottom: "5px",
             }}
           >
-            {["Lu", "Ma", "Me", "Je", "Ve", "Sa", "Di"].map(
-              (day) => (
-                <div
-                  key={day}
-                  style={{
-                    textAlign: "center",
-                    fontSize: "11px",
-                    color: "#a3a3a3",
-                    padding: "5px 0",
-                  }}
-                >
-                  {day}
-                </div>
-              )
-            )}
+            {["Lu", "Ma", "Me", "Je", "Ve", "Sa", "Di"].map((day) => (
+              <div
+                key={day}
+                style={{
+                  textAlign: "center",
+                  fontSize: "11px",
+                  color: "#a3a3a3",
+                  padding: "5px 0",
+                }}
+              >
+                {day}
+              </div>
+            ))}
           </div>
 
           <div
@@ -337,9 +332,7 @@ function ReactDatePicker({
                       ? "1px solid #ef4444"
                       : "1px solid transparent",
                     borderRadius: "7px",
-                    background: isSelected
-                      ? "#dc2626"
-                      : "transparent",
+                    background: isSelected ? "#dc2626" : "transparent",
                     color: isPast ? "#555" : "#fff",
                     fontSize: "13px",
                     fontWeight: isSelected ? 700 : 400,
@@ -370,11 +363,7 @@ function ReactDatePicker({
                 const currentDate = getLocalDate();
 
                 onChange(currentDate);
-
-                setViewDate(
-                  parseLocalDate(currentDate) || new Date()
-                );
-
+                setViewDate(parseLocalDate(currentDate) || new Date());
                 setIsOpen(false);
               }}
               style={{
@@ -452,13 +441,19 @@ function ReservationForm() {
     duration: 2,
   });
 
+  const timeOptions = Array.from({ length: 24 }, (_, hour) =>
+    `${String(hour).padStart(2, "0")}:00`
+  );
+
   // =========================================================
-  // OPTIONS DE L'HEURE : INTERVALLE D'UNE HEURE
+  // CALCUL AUTOMATIQUE DU PRIX
+  // 150 DA par station et par heure
   // =========================================================
 
-  const timeOptions = Array.from({ length: 24 }, (_, hour) => {
-    return `${String(hour).padStart(2, "0")}:00`;
-  });
+  const totalPrice =
+    selectedStations.length *
+    STATION_PRICE_PER_HOUR *
+    Number(form.duration || 0);
 
   // =========================================================
   // CHARGER LES STATIONS
@@ -481,6 +476,7 @@ function ReservationForm() {
         }
 
         const data = await response.json();
+
         const stationList = Array.isArray(data)
           ? data
           : data.results || [];
@@ -523,15 +519,11 @@ function ReservationForm() {
   };
 
   // =========================================================
-  // CHANGER LA DATE SANS MODIFIER L'HEURE
+  // CHANGER LA DATE
   // =========================================================
 
   const handleDateChange = (date) => {
-    setForm((previous) => ({
-      ...previous,
-      date,
-    }));
-
+    setForm((previous) => ({ ...previous, date }));
     setSelectedStations([]);
     setAvailableStations([]);
     setError("");
@@ -546,7 +538,7 @@ function ReservationForm() {
       setAvailableStations([]);
       setSelectedStations([]);
       setCheckingAvailability(false);
-      return;
+      return undefined;
     }
 
     const controller = new AbortController();
@@ -588,16 +580,12 @@ function ReservationForm() {
         setSelectedStations((previous) =>
           previous.filter((stationId) =>
             available.some(
-              (station) =>
-                Number(station.id) === Number(stationId)
+              (station) => Number(station.id) === Number(stationId)
             )
           )
         );
       } catch (err) {
-        if (
-          err.name === "AbortError" ||
-          controller.signal.aborted
-        ) {
+        if (err.name === "AbortError" || controller.signal.aborted) {
           return;
         }
 
@@ -605,9 +593,7 @@ function ReservationForm() {
 
         setAvailableStations([]);
         setSelectedStations([]);
-        setError(
-          err.message || "Unable to check station availability."
-        );
+        setError(err.message || "Unable to check station availability.");
       } finally {
         if (!controller.signal.aborted) {
           setCheckingAvailability(false);
@@ -648,94 +634,223 @@ function ReservationForm() {
   };
 
   // =========================================================
-  // EXTRAIRE UN PLAYER D'UNE RÉPONSE API
+  // RÉCUPÉRER TOUS LES JOUEURS, Y COMPRIS LES PAGES SUIVANTES
   // =========================================================
 
-  const extractPlayer = (data) => {
-    if (Array.isArray(data)) {
-      return data[0] || null;
-    }
+  const getAllPlayers = async () => {
+    let nextUrl = `${API_URL}/players/`;
 
-    if (data && Array.isArray(data.results)) {
-      return data.results[0] || null;
-    }
+    const allPlayers = [];
+    const visitedUrls = new Set();
 
-    if (data && data.id) {
-      return data;
-    }
+    while (nextUrl) {
+      if (visitedUrls.has(nextUrl)) {
+        throw new Error(
+          "Boucle détectée pendant la récupération des joueurs."
+        );
+      }
 
-    return null;
-  };
+      visitedUrls.add(nextUrl);
 
-  // =========================================================
-  // RÉCUPÉRER OU CRÉER LE PLAYER
-  // =========================================================
+      console.log(`${PLAYER_DEBUG} GET joueurs :`, nextUrl);
 
-  const getOrCreatePlayer = async () => {
-    const phone = form.phone.trim();
-    const name = form.name.trim();
+      const response = await fetch(nextUrl);
 
-    if (!phone) {
-      throw new Error("Phone number is required.");
-    }
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => "");
 
-    const searchPlayer = async () => {
-      const params = new URLSearchParams({ phone });
+        console.error(
+          `${PLAYER_DEBUG} Erreur de récupération`,
+          response.status,
+          errorText
+        );
 
-      const response = await fetch(
-        `${API_URL}/players/?${params.toString()}`
-      );
-
-      if (!response.ok) return null;
+        throw new Error(
+          "Impossible de récupérer la liste complète des joueurs."
+        );
+      }
 
       const data = await response.json();
 
-      return extractPlayer(data);
-    };
-
-    try {
-      const existingPlayer = await searchPlayer();
-
-      if (existingPlayer?.id) {
-        return existingPlayer;
+      if (Array.isArray(data?.results)) {
+        allPlayers.push(...data.results);
+        nextUrl = data.next || null;
+      } else if (Array.isArray(data)) {
+        allPlayers.push(...data);
+        nextUrl = null;
+      } else if (data?.id != null) {
+        allPlayers.push(data);
+        nextUrl = null;
+      } else {
+        nextUrl = null;
       }
-    } catch (err) {
-      console.warn("Player search failed:", err);
+
+      console.log(
+        `${PLAYER_DEBUG} Nombre de joueurs chargés :`,
+        allPlayers.length
+      );
     }
 
-    const createResponse = await fetch(`${API_URL}/players/`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        name,
-        phone,
-      }),
-    });
-
-    const createData = await createResponse.json().catch(() => ({}));
-
-    if (createResponse.ok) {
-      return createData;
-    }
-
-    try {
-      const existingPlayer = await searchPlayer();
-
-      if (existingPlayer?.id) {
-        return existingPlayer;
-      }
-    } catch (err) {
-      console.error("Retry player search error:", err);
-    }
-
-    throw new Error(
-      createData.detail ||
-        createData.phone?.[0] ||
-        createData.name?.[0] ||
-        "Unable to create or retrieve player."
+    const uniquePlayers = Array.from(
+      new Map(
+        allPlayers
+          .filter((player) => player?.id != null)
+          .map((player) => [String(player.id), player])
+      ).values()
     );
+
+    console.table(
+      uniquePlayers.map((player) => ({
+        id: player.id,
+        name: player.name,
+        phone: player.phone,
+      }))
+    );
+
+    return uniquePlayers;
+  };
+
+  // =========================================================
+  // CHOISIR LE JOUEUR PAR NOM EXACT, SINON LE CRÉER
+  // =========================================================
+
+  const getOrCreatePlayer = async () => {
+    const name = String(form.name ?? "")
+      .trim()
+      .replace(/\s+/g, " ");
+
+    const phone = String(form.phone ?? "").trim();
+
+    console.group(`${PLAYER_DEBUG} getOrCreatePlayer`);
+
+    console.log("Nom saisi :", name);
+    console.log("Téléphone saisi :", phone);
+
+    try {
+      if (!name) {
+        throw new Error("Phone/name: le nom du joueur est obligatoire.");
+      }
+
+      if (!phone) {
+        throw new Error("Phone number is required.");
+      }
+
+      const allPlayers = await getAllPlayers();
+      const normalizedName = normalizePlayerName(name);
+
+      const exactMatches = allPlayers.filter(
+        (player) => normalizePlayerName(player.name) === normalizedName
+      );
+
+      console.log(
+        `${PLAYER_DEBUG} Correspondances exactes :`,
+        exactMatches
+      );
+
+      if (exactMatches.length > 0) {
+        const player =
+          exactMatches.find(
+            (item) => String(item.phone ?? "").trim() === phone
+          ) || exactMatches[0];
+
+        console.log(
+          `${PLAYER_DEBUG} Joueur existant sélectionné :`,
+          {
+            id: player.id,
+            name: player.name,
+            phone: player.phone,
+            exactNameMatch:
+              normalizePlayerName(player.name) === normalizedName,
+            exactPhoneMatch:
+              String(player.phone ?? "").trim() === phone,
+          }
+        );
+
+        return player;
+      }
+
+      const payload = { name, phone };
+
+      console.log(
+        `${PLAYER_DEBUG} Création d'un nouveau joueur :`,
+        payload
+      );
+
+      const response = await fetch(`${API_URL}/players/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      console.log(
+        `${PLAYER_DEBUG} Statut POST joueur :`,
+        response.status
+      );
+
+      console.log(
+        `${PLAYER_DEBUG} Réponse POST joueur :`,
+        data
+      );
+
+      if (!response.ok) {
+        const refreshedPlayers = await getAllPlayers().catch(() => []);
+
+        const matchingPlayer = refreshedPlayers.find(
+          (player) =>
+            normalizePlayerName(player.name) === normalizedName &&
+            String(player.phone ?? "").trim() === phone
+        );
+
+        if (matchingPlayer) {
+          console.warn(
+            `${PLAYER_DEBUG} Joueur exact retrouvé après le refus de création :`,
+            matchingPlayer
+          );
+
+          return matchingPlayer;
+        }
+
+        throw new Error(
+          data.detail ||
+            data.phone?.[0] ||
+            data.name?.[0] ||
+            "Unable to create or retrieve player."
+        );
+      }
+
+      if (data?.id == null) {
+        throw new Error(
+          "La création du joueur n'a pas retourné d'identifiant valide."
+        );
+      }
+
+      if (normalizePlayerName(data.name) !== normalizedName) {
+        console.error(
+          `${PLAYER_DEBUG} Nom retourné inattendu :`,
+          {
+            requestedName: name,
+            returnedName: data.name,
+            playerId: data.id,
+          }
+        );
+
+        throw new Error(
+          "Le joueur créé ne correspond pas exactement au nom saisi."
+        );
+      }
+
+      console.log(`${PLAYER_DEBUG} Nouveau joueur créé :`, {
+        id: data.id,
+        name: data.name,
+        phone: data.phone,
+      });
+
+      return data;
+    } finally {
+      console.groupEnd();
+    }
   };
 
   // =========================================================
@@ -828,12 +943,39 @@ function ReservationForm() {
       return;
     }
 
+    console.group(`${PLAYER_DEBUG} SOUMISSION RÉSERVATION`);
+
+    console.log("Formulaire envoyé :", {
+      name: form.name.trim(),
+      phone: form.phone.trim(),
+      date: form.date,
+      time: form.time,
+      duration,
+      selectedStations: [...selectedStations],
+      pricePerStationPerHour: STATION_PRICE_PER_HOUR,
+      totalPrice:
+        selectedStations.length *
+        STATION_PRICE_PER_HOUR *
+        duration,
+    });
+
     setSubmitting(true);
 
     try {
       const player = await getOrCreatePlayer();
 
-      if (!player?.id) {
+      console.log(`${PLAYER_DEBUG} Joueur final pour le groupe :`, {
+        id: player?.id,
+        name: player?.name,
+        phone: player?.phone,
+        formName: form.name.trim(),
+        formPhone: form.phone.trim(),
+        exactNameMatch:
+          normalizePlayerName(player?.name) ===
+          normalizePlayerName(form.name),
+      });
+
+      if (player?.id == null) {
         throw new Error("Unable to identify the player.");
       }
 
@@ -850,25 +992,40 @@ function ReservationForm() {
       const createdReservations = [];
 
       for (const stationId of selectedStations) {
+        const reservationPayload = {
+          player: Number(player.id),
+          station: Number(stationId),
+          date: form.date,
+          time: form.time,
+          duration,
+          reservation_group: reservationGroup,
+        };
+
+        console.group(
+          `${PLAYER_DEBUG} POST réservation station ${stationId}`
+        );
+
+        console.log("Payload envoyé :", reservationPayload);
+
         const response = await fetch(`${API_URL}/reservations/`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            player: Number(player.id),
-            station: Number(stationId),
-            date: form.date,
-            time: form.time,
-            duration,
-            reservation_group: reservationGroup,
-          }),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(reservationPayload),
         });
 
         const data = await response.json().catch(() => ({}));
 
+        console.log("Statut HTTP :", response.status);
+        console.log("Réponse réservation :", data);
+
+        console.log("ID joueur envoyé/reçu :", {
+          sentPlayerId: reservationPayload.player,
+          returnedPlayerId: data?.player,
+        });
+
         if (!response.ok) {
           console.error("Reservation API error:", data);
+          console.groupEnd();
 
           throw new Error(
             data.detail ||
@@ -880,7 +1037,34 @@ function ReservationForm() {
         }
 
         createdReservations.push(data);
+
+        console.groupEnd();
       }
+
+      const finalTotalPrice =
+        selectedStations.length *
+        STATION_PRICE_PER_HOUR *
+        duration;
+
+      console.log(
+        `${PLAYER_DEBUG} Réservations créées :`,
+        createdReservations
+      );
+
+      console.log(`${PLAYER_DEBUG} Résumé du groupe :`, {
+        playerId: player.id,
+        playerName: player.name,
+        playerPhone: player.phone,
+        reservationGroup,
+        reservationIds: createdReservations.map((item) => item?.id),
+        reservationPlayerIds: createdReservations.map(
+          (item) => item?.player
+        ),
+        stationCount: selectedStations.length,
+        duration,
+        pricePerStationPerHour: STATION_PRICE_PER_HOUR,
+        totalPrice: finalTotalPrice,
+      });
 
       const reservedStations = selectedStations
         .map((stationId) =>
@@ -902,6 +1086,8 @@ function ReservationForm() {
         station_count: selectedStations.length,
         stations: reservedStations,
         reservations: createdReservations,
+        price_per_station_per_hour: STATION_PRICE_PER_HOUR,
+        total_price: finalTotalPrice,
       };
 
       try {
@@ -917,31 +1103,37 @@ function ReservationForm() {
       setSuccess(true);
       setSelectedStations([]);
     } catch (err) {
-      console.error("Reservation submission error:", err);
+      console.error(`${PLAYER_DEBUG} ERREUR SOUMISSION :`, err);
 
-      setError(
-        err.message || "Unable to create the reservation."
+      console.error(
+        `${PLAYER_DEBUG} Attention : si plusieurs stations ont été créées avant cette erreur, le groupe peut être partiellement enregistré.`,
+        {
+          selectedStations,
+          reservationDate: form.date,
+          reservationTime: form.time,
+        }
       );
+
+      setError(err.message || "Unable to create the reservation.");
     } finally {
+      console.groupEnd();
       setSubmitting(false);
     }
   };
 
   // =========================================================
-  // UTILITAIRES
+  // UTILITAIRES STATIONS
   // =========================================================
 
-  const isStationAvailable = (stationId) => {
-    return availableStations.some(
+  const isStationAvailable = (stationId) =>
+    availableStations.some(
       (station) => Number(station.id) === Number(stationId)
     );
-  };
 
-  const isStationSelected = (stationId) => {
-    return selectedStations.some(
+  const isStationSelected = (stationId) =>
+    selectedStations.some(
       (id) => Number(id) === Number(stationId)
     );
-  };
 
   // =========================================================
   // ÉCRAN DE CONFIRMATION
@@ -1028,6 +1220,103 @@ function ReservationForm() {
             </div>
           </div>
 
+          {/* DÉTAIL DU PRIX SUR LA CONFIRMATION */}
+          <div
+            className="reservation-total-price"
+            style={{
+              marginTop: "24px",
+              padding: "20px",
+              border: "1px solid rgba(239,68,68,0.4)",
+              borderRadius: "12px",
+              background: "rgba(239,68,68,0.08)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                marginBottom: "14px",
+              }}
+            >
+              <Banknote size={22} color="#ef4444" />
+              <strong style={{ color: "#fff" }}>
+                RESERVATION PRICE
+              </strong>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "12px",
+                marginBottom: "10px",
+                color: "#ccc",
+                fontSize: "14px",
+              }}
+            >
+              <span>Price per station / hour</span>
+              <strong>
+                {formatPrice(
+                  reservationResult.price_per_station_per_hour
+                )}
+              </strong>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "12px",
+                marginBottom: "10px",
+                color: "#ccc",
+                fontSize: "14px",
+              }}
+            >
+              <span>Number of stations</span>
+              <strong>{reservationResult.station_count}</strong>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "12px",
+                marginBottom: "14px",
+                color: "#ccc",
+                fontSize: "14px",
+              }}
+            >
+              <span>Duration</span>
+              <strong>{reservationResult.duration} h</strong>
+            </div>
+
+            <div
+              style={{
+                borderTop: "1px solid rgba(255,255,255,0.15)",
+                paddingTop: "14px",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: "12px",
+              }}
+            >
+              <span style={{ color: "#fff", fontWeight: 700 }}>
+                TOTAL PRICE
+              </span>
+
+              <strong
+                style={{
+                  color: "#ef4444",
+                  fontSize: "25px",
+                  fontWeight: 800,
+                }}
+              >
+                {formatPrice(reservationResult.total_price)}
+              </strong>
+            </div>
+          </div>
+
           <div className="reservation-success-stations">
             <div className="reservation-success-stations-title">
               <Monitor size={19} />
@@ -1075,7 +1364,6 @@ function ReservationForm() {
   return (
     <div className="reservation-form">
       {/* INFORMATIONS DU JOUEUR */}
-
       <div className="reservation-section">
         <div className="reservation-section-header">
           <Users size={22} />
@@ -1120,7 +1408,6 @@ function ReservationForm() {
       </div>
 
       {/* DÉTAILS DE LA RÉSERVATION */}
-
       <div className="reservation-section">
         <div className="reservation-section-header">
           <CalendarDays size={22} />
@@ -1132,8 +1419,6 @@ function ReservationForm() {
         </div>
 
         <div className="reservation-form-grid">
-          {/* DATE : CALENDRIER */}
-
           <div className="form-group">
             <label>DATE</label>
 
@@ -1143,8 +1428,6 @@ function ReservationForm() {
               disabled={submitting}
             />
           </div>
-
-          {/* START TIME : LISTE DÉROULANTE PAR HEURE */}
 
           <div className="form-group">
             <label htmlFor="time">START TIME</label>
@@ -1165,10 +1448,7 @@ function ReservationForm() {
                 onChange={handleChange}
                 disabled={submitting}
                 required
-                style={{
-                  flex: 1,
-                  minWidth: 0,
-                }}
+                style={{ flex: 1, minWidth: 0 }}
               >
                 <option value="">Select start time</option>
 
@@ -1180,8 +1460,6 @@ function ReservationForm() {
               </select>
             </div>
           </div>
-
-          {/* DURÉE : 1 HEURE EST DISPONIBLE */}
 
           <div className="form-group">
             <label htmlFor="duration">DURATION</label>
@@ -1206,6 +1484,7 @@ function ReservationForm() {
         {form.date && (
           <div className="reservation-info">
             <CalendarDays size={18} />
+
             <span>
               Selected date: {formatDateForDisplay(form.date)}
             </span>
@@ -1221,7 +1500,6 @@ function ReservationForm() {
       </div>
 
       {/* SÉLECTION DES STATIONS */}
-
       <div className="reservation-section">
         <div className="reservation-section-header">
           <Monitor size={22} />
@@ -1229,8 +1507,7 @@ function ReservationForm() {
           <div>
             <h3>SELECT YOUR STATIONS</h3>
             <p>
-              Select between 8 and 10 stations for the same
-              reservation
+              Select between 8 and 10 stations for the same reservation
             </p>
           </div>
         </div>
@@ -1248,9 +1525,9 @@ function ReservationForm() {
         {!form.date || !form.time ? (
           <div className="reservation-info">
             <CalendarDays size={18} />
+
             <span>
-              Select a reservation date and start time to check
-              availability.
+              Select a reservation date and start time to check availability.
             </span>
           </div>
         ) : loadingStations ? (
@@ -1289,9 +1566,7 @@ function ReservationForm() {
                     selected ? "selected" : ""
                   } ${!available ? "unavailable" : ""}`}
                   onClick={() => {
-                    if (!disabled) {
-                      toggleStation(station.id);
-                    }
+                    if (!disabled) toggleStation(station.id);
                   }}
                   disabled={disabled}
                 >
@@ -1321,26 +1596,22 @@ function ReservationForm() {
           </div>
         )}
 
-        {selectedStations.length > 0 &&
-          selectedStations.length < 8 && (
-            <div className="reservation-warning">
-              Please select at least <strong>8 stations</strong>.
-              You currently selected{" "}
-              <strong>{selectedStations.length}</strong>.
-            </div>
-          )}
+        {selectedStations.length > 0 && selectedStations.length < 8 && (
+          <div className="reservation-warning">
+            Please select at least <strong>8 stations</strong>. You
+            currently selected <strong>{selectedStations.length}</strong>.
+          </div>
+        )}
       </div>
 
       {/* ERREUR */}
-
       {error && (
         <div className="reservation-error" role="alert">
           {error}
         </div>
       )}
 
-      {/* RÉSUMÉ */}
-
+      {/* RÉSUMÉ DE LA RÉSERVATION */}
       <div className="reservation-summary">
         <div className="reservation-summary-row">
           <span>SELECTED STATIONS</span>
@@ -1348,11 +1619,15 @@ function ReservationForm() {
         </div>
 
         <div className="reservation-summary-row">
+          <span>PRICE PER STATION / HOUR</span>
+          <strong>{formatPrice(STATION_PRICE_PER_HOUR)}</strong>
+        </div>
+
+        <div className="reservation-summary-row">
           <span>DATE</span>
+
           <strong>
-            {form.date
-              ? formatDateForDisplay(form.date)
-              : "--"}
+            {form.date ? formatDateForDisplay(form.date) : "--"}
           </strong>
         </div>
 
@@ -1363,14 +1638,55 @@ function ReservationForm() {
 
         <div className="reservation-summary-row">
           <span>DURATION</span>
-          <strong>
-            {form.duration} {form.duration === 1 ? "H" : "H"}
+          <strong>{form.duration} H</strong>
+        </div>
+
+        {/* NOUVEAU : PRIX TOTAL CALCULÉ AUTOMATIQUEMENT */}
+        <div
+          className="reservation-summary-row reservation-summary-total"
+          style={{
+            marginTop: "12px",
+            paddingTop: "16px",
+            borderTop: "1px solid rgba(255,255,255,0.15)",
+          }}
+        >
+          <span
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              fontWeight: 700,
+            }}
+          >
+            <Banknote size={20} color="#ef4444" />
+            TOTAL PRICE
+          </span>
+
+          <strong
+            style={{
+              color: "#ef4444",
+              fontSize: "24px",
+              fontWeight: 800,
+            }}
+          >
+            {formatPrice(totalPrice)}
           </strong>
+        </div>
+
+        <div
+          style={{
+            marginTop: "8px",
+            color: "#aaa",
+            fontSize: "12px",
+            textAlign: "right",
+          }}
+        >
+          {selectedStations.length} station(s) ×{" "}
+          {STATION_PRICE_PER_HOUR} DA × {form.duration} heure(s)
         </div>
       </div>
 
       {/* BOUTON DE RÉSERVATION */}
-
       <button
         type="button"
         className="reservation-submit-button"
@@ -1387,7 +1703,9 @@ function ReservationForm() {
       >
         {submitting
           ? "CREATING RESERVATION..."
-          : `RESERVE ${selectedStations.length} STATIONS`}
+          : `RESERVE ${selectedStations.length} STATIONS — ${formatPrice(
+              totalPrice
+            )}`}
       </button>
     </div>
   );
