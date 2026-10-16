@@ -13,7 +13,7 @@ function Games() {
       setError("");
 
       const response = await fetch(
-        "https://nexusgameback.onrender.com/api/games/"
+        "https://amineaibeche8.pythonanywhere.com/api/games/"
       );
 
       if (!response.ok) {

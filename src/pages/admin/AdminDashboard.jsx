@@ -11,7 +11,7 @@ import {
 
 function AdminDashboard() {
   const API_URL =
-    "https://nexusgameback.onrender.com/api";
+    "https://amineaibeche8.pythonanywhere.com/api";
 
   const [reservations, setReservations] =
     useState([]);

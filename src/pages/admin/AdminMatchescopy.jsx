@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 
 function AdminMatches() {
-  const API_URL = "https://nexusgameback.onrender.com/api/matches/";
+  const API_URL = "https://amineaibeche8.pythonanywhere.com/api/matches/";
 
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);

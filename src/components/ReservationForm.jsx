@@ -16,7 +16,7 @@ import {
   Banknote,
 } from "lucide-react";
 
-const API_URL = "https://nexusgameback.onrender.com/api";
+const API_URL = "https://amineaibeche8.pythonanywhere.com/api";
 const PLAYER_DEBUG = "[NEXUS PLAYER DEBUG]";
 
 // Prix fixe d'une station pour une heure

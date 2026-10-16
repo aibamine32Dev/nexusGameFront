@@ -67,7 +67,7 @@ function AdminGameNew() {
       };
 
       const response = await fetch(
-        "https://nexusgameback.onrender.com/api/games/",
+        "https://amineaibeche8.pythonanywhere.com/api/games/",
         {
           method: "POST",
           headers: {

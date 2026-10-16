@@ -15,7 +15,7 @@ function AdminGameEdit() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const API_URL = "https://nexusgameback.onrender.com/api/games/";
+  const API_URL = "https://amineaibeche8.pythonanywhere.com/api/games/";
 
   const [game, setGame] = useState(null);
   const [form, setForm] = useState(null);

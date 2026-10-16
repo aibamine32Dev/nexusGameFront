@@ -26,7 +26,7 @@ function ReservationSuccess() {
     useState("");
 
   const API_URL =
-    "https://nexusgameback.onrender.com/api/games/";
+    "https://amineaibeche8.pythonanywhere.com/api/games/";
 
   useEffect(() => {
     const loadReservation =

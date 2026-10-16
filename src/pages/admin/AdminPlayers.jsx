@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 
 function AdminPlayers() {
-  const API_URL = "https://nexusgameback.onrender.com/api/players/";
+  const API_URL = "https://amineaibeche8.pythonanywhere.com/api/players/";
 
   const [players, setPlayers] = useState([]);
   const [loading, setLoading] = useState(true);

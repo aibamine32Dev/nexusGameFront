@@ -15,7 +15,7 @@ function AdminGames() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const API_URL = "https://nexusgameback.onrender.com/api/games/";
+  const API_URL = "https://amineaibeche8.pythonanywhere.com/api/games/";
 
   // =========================
   // GET - Load games

@@ -12,7 +12,7 @@ function Account() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const API_RESERVATIONS = "https://nexusgameback.onrender.com/api/reservations/";
+  const API_RESERVATIONS = "https://amineaibeche8.pythonanywhere.com/api/reservations/";
 
   useEffect(() => {
     const fetchReservations = async () => {

@@ -25,7 +25,7 @@ function Home() {
     try {
       setLoading(true);
       setError("");
-      const response = await fetch("https://nexusgameback.onrender.com/api/games/");
+      const response = await fetch("https://amineaibeche8.pythonanywhere.com/api/games/");
       if (!response.ok) throw new Error("Failed to load games");
       const data = await response.json();
       setGames(data);

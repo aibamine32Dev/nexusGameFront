@@ -10,7 +10,7 @@ import {
   X,
 } from "lucide-react";
 
-const API_URL = "https://nexusgameback.onrender.com/api";
+const API_URL = "https://amineaibeche8.pythonanywhere.com/api";
 
 const MIN_PLAYERS = 8;
 const MAX_PLAYERS = 10;
