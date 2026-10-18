@@ -20,7 +20,7 @@
 //
 // =========================================================
 
-export const API_URL = "https://nexusgameback.onrender.com/api";
+export const API_URL = "https://amineaibeche8.pythonanywhere.com/api";
 
 export const USE_MOCK = false;
 
