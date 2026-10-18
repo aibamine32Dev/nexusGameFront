@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import {
   User,
@@ -16,7 +17,8 @@ import {
 } from "lucide-react";
 
 function AdminPlayers() {
-  const API_URL = "https://amineaibeche8.pythonanywhere.com/api/players/";
+  const API_URL =
+    "https://amineaibeche8.pythonanywhere.com/api/players/";
 
   const [players, setPlayers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -26,14 +28,32 @@ function AdminPlayers() {
   const [pointInputs, setPointInputs] = useState({});
   const [expandedId, setExpandedId] = useState(null);
 
+  // Exclure les joueurs dont le nom commence par "Companion 2 of"
+  const isCompanionToHide = (player) => {
+    const name = (player.name || "").trim().toLowerCase();
+
+    return name.startsWith("companion");
+  };
+
   const loadPlayers = async () => {
     try {
       setLoading(true);
       setError("");
+
       const response = await fetch(API_URL);
-      if (!response.ok) throw new Error("Unable to load players.");
+
+      if (!response.ok) {
+        throw new Error("Unable to load players.");
+      }
+
       const data = await response.json();
-      setPlayers(Array.isArray(data) ? data : []);
+
+      // Filtrer les joueurs avant de les afficher
+      const loadedPlayers = Array.isArray(data) ? data : [];
+
+      setPlayers(
+        loadedPlayers.filter((player) => !isCompanionToHide(player))
+      );
     } catch (err) {
       console.error("Players API error:", err);
       setError("Unable to load players.");
@@ -47,7 +67,10 @@ function AdminPlayers() {
   }, []);
 
   const handleInputChange = (playerId, value) => {
-    setPointInputs((prev) => ({ ...prev, [playerId]: value }));
+    setPointInputs((prev) => ({
+      ...prev,
+      [playerId]: value,
+    }));
   };
 
   const updatePointsCustom = async (player, operation) => {
@@ -60,22 +83,44 @@ function AdminPlayers() {
     }
 
     const delta = operation === "add" ? amount : -amount;
-    const newPoints = Math.max(0, player.points + delta);
+    const newPoints = Math.max(0, (player.points || 0) + delta);
 
     try {
       setUpdatingId(player.id);
+
       const response = await fetch(`${API_URL}${player.id}/`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ points: newPoints }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          points: newPoints,
+        }),
       });
 
-      if (!response.ok) throw new Error("Unable to update player points.");
+      if (!response.ok) {
+        throw new Error("Unable to update player points.");
+      }
+
       const updatedPlayer = await response.json();
-      setPlayers((prev) =>
-        prev.map((p) => (p.id === updatedPlayer.id ? updatedPlayer : p))
-      );
-      setPointInputs((prev) => ({ ...prev, [player.id]: "" }));
+
+      // Ne jamais ajouter un accompagnant à la liste affichée
+      if (isCompanionToHide(updatedPlayer)) {
+        setPlayers((prev) =>
+          prev.filter((p) => p.id !== updatedPlayer.id)
+        );
+      } else {
+        setPlayers((prev) =>
+          prev.map((p) =>
+            p.id === updatedPlayer.id ? updatedPlayer : p
+          )
+        );
+      }
+
+      setPointInputs((prev) => ({
+        ...prev,
+        [player.id]: "",
+      }));
     } catch (err) {
       console.error(err);
       alert("Error while updating points.");
@@ -85,11 +130,25 @@ function AdminPlayers() {
   };
 
   const deletePlayer = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this player?")) return;
+    if (
+      !window.confirm(
+        "Are you sure you want to delete this player?"
+      )
+    ) {
+      return;
+    }
+
     try {
       setUpdatingId(id);
-      const response = await fetch(`${API_URL}${id}/`, { method: "DELETE" });
-      if (!response.ok) throw new Error("Unable to delete player.");
+
+      const response = await fetch(`${API_URL}${id}/`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error("Unable to delete player.");
+      }
+
       setPlayers((prev) => prev.filter((p) => p.id !== id));
     } catch (err) {
       console.error(err);
@@ -99,33 +158,70 @@ function AdminPlayers() {
     }
   };
 
-  const getRankLabel = (points) => {
-    if (points >= 1000) return { label: "LEGEND", color: "#f59e0b" };
-    if (points >= 500) return { label: "DIAMOND", color: "#60a5fa" };
-    if (points >= 200) return { label: "GOLD", color: "#fbbf24" };
-    if (points >= 50) return { label: "SILVER", color: "#9ca3af" };
+  const getRankLabel = (points = 0) => {
+    if (points >= 1000) {
+      return { label: "LEGEND", color: "#f59e0b" };
+    }
+
+    if (points >= 500) {
+      return { label: "DIAMOND", color: "#60a5fa" };
+    }
+
+    if (points >= 200) {
+      return { label: "GOLD", color: "#fbbf24" };
+    }
+
+    if (points >= 50) {
+      return { label: "SILVER", color: "#9ca3af" };
+    }
+
     return { label: "BRONZE", color: "#b45309" };
   };
 
-  const filteredPlayers = players.filter(
-    (p) =>
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.phone.includes(searchQuery) ||
-      (p.email && p.email.toLowerCase().includes(searchQuery.toLowerCase()))
+  // Liste des joueurs visibles, sans les Companion 2 of
+  const visiblePlayers = players.filter(
+    (player) => !isCompanionToHide(player)
   );
 
-  const totalPoints = players.reduce((sum, p) => sum + (p.points || 0), 0);
+  const filteredPlayers = visiblePlayers.filter((player) => {
+    const query = searchQuery.trim().toLowerCase();
+
+    return (
+      (player.name || "").toLowerCase().includes(query) ||
+      (player.phone || "").includes(query) ||
+      (player.email || "").toLowerCase().includes(query)
+    );
+  });
+
+  const totalPoints = visiblePlayers.reduce(
+    (sum, player) => sum + (player.points || 0),
+    0
+  );
+
+  const topScorer = [...visiblePlayers].sort(
+    (a, b) => (b.points || 0) - (a.points || 0)
+  )[0];
 
   return (
     <section className="admin-page">
       {/* PAGE HEADER */}
       <div className="admin-page-header">
         <div>
-          <span style={{ color: "#ef4444", fontSize: "12px", fontWeight: 700, letterSpacing: "3px", textTransform: "uppercase" }}>
+          <span
+            style={{
+              color: "#ef4444",
+              fontSize: "12px",
+              fontWeight: 700,
+              letterSpacing: "3px",
+              textTransform: "uppercase",
+            }}
+          >
             MANAGEMENT
           </span>
+
           <h1 style={{ margin: "6px 0 0" }}>
-            PLAYERS <br />
+            PLAYERS
+            <br />
             <strong>MANAGER.</strong>
           </h1>
         </div>
@@ -134,9 +230,16 @@ function AdminPlayers() {
           className="admin-primary-button"
           onClick={loadPlayers}
           disabled={loading}
-          style={{ display: "flex", alignItems: "center", gap: "8px" }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+          }}
         >
-          <RefreshCw size={16} className={loading ? "spin" : ""} />
+          <RefreshCw
+            size={16}
+            className={loading ? "spin" : ""}
+          />
           REFRESH
         </button>
       </div>
@@ -151,14 +254,20 @@ function AdminPlayers() {
         }}
       >
         {[
-          { icon: <Users size={22} />, label: "Total Players", value: players.length },
-          { icon: <Trophy size={22} />, label: "Total Points Awarded", value: totalPoints.toLocaleString() },
+          {
+            icon: <Users size={22} />,
+            label: "Total Players",
+            value: visiblePlayers.length,
+          },
+          {
+            icon: <Trophy size={22} />,
+            label: "Total Points Awarded",
+            value: totalPoints.toLocaleString(),
+          },
           {
             icon: <Award size={22} />,
             label: "Top Scorer",
-            value: players.length
-              ? [...players].sort((a, b) => b.points - a.points)[0]?.name || "—"
-              : "—",
+            value: topScorer?.name || "—",
           },
         ].map((stat, i) => (
           <div
@@ -187,11 +296,28 @@ function AdminPlayers() {
             >
               {stat.icon}
             </div>
+
             <div>
-              <div style={{ fontSize: "11px", color: "#888", letterSpacing: "1px", textTransform: "uppercase" }}>
+              <div
+                style={{
+                  fontSize: "11px",
+                  color: "#888",
+                  letterSpacing: "1px",
+                  textTransform: "uppercase",
+                }}
+              >
                 {stat.label}
               </div>
-              <div style={{ fontSize: "20px", fontWeight: 700, color: "#fff", marginTop: "2px" }}>
+
+              <div
+                style={{
+                  fontSize: "20px",
+                  fontWeight: 700,
+                  color: "#fff",
+                  marginTop: "2px",
+                  overflowWrap: "anywhere",
+                }}
+              >
                 {stat.value}
               </div>
             </div>
@@ -204,15 +330,28 @@ function AdminPlayers() {
         {/* SEARCH HEADER */}
         <div
           className="admin-panel-header"
-          style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: "12px",
+          }}
         >
           <div>
-            <h2 style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <h2
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+              }}
+            >
               <User size={20} />
               PLAYER LIST
             </h2>
+
             <span style={{ fontSize: "13px", color: "#888" }}>
-              {filteredPlayers.length} / {players.length} players
+              {filteredPlayers.length} / {visiblePlayers.length} players
             </span>
           </div>
 
@@ -229,6 +368,7 @@ function AdminPlayers() {
             }}
           >
             <Search size={16} color="#888" />
+
             <input
               type="text"
               placeholder="Search by name, email, phone..."
@@ -256,7 +396,11 @@ function AdminPlayers() {
         {!loading && error && (
           <div className="admin-empty">
             <p style={{ color: "#ef4444" }}>{error}</p>
-            <button className="admin-primary-button" onClick={loadPlayers}>
+
+            <button
+              className="admin-primary-button"
+              onClick={loadPlayers}
+            >
               RETRY
             </button>
           </div>
@@ -271,13 +415,21 @@ function AdminPlayers() {
         )}
 
         {!loading && !error && filteredPlayers.length > 0 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "12px",
+            }}
+          >
             {[...filteredPlayers]
-              .sort((a, b) => b.points - a.points)
+              .sort(
+                (a, b) => (b.points || 0) - (a.points || 0)
+              )
               .map((player, idx) => {
                 const isUpdating = updatingId === player.id;
                 const customValue = pointInputs[player.id] || "";
-                const rank = getRankLabel(player.points);
+                const rank = getRankLabel(player.points || 0);
                 const isExpanded = expandedId === player.id;
 
                 return (
@@ -300,7 +452,9 @@ function AdminPlayers() {
                         padding: "16px 20px",
                         cursor: "pointer",
                       }}
-                      onClick={() => setExpandedId(isExpanded ? null : player.id)}
+                      onClick={() =>
+                        setExpandedId(isExpanded ? null : player.id)
+                      }
                     >
                       {/* RANK BADGE */}
                       <div
@@ -308,7 +462,10 @@ function AdminPlayers() {
                           width: "36px",
                           height: "36px",
                           borderRadius: "50%",
-                          background: idx === 0 ? "#f59e0b22" : "rgba(255,255,255,0.06)",
+                          background:
+                            idx === 0
+                              ? "#f59e0b22"
+                              : "rgba(255,255,255,0.06)",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
@@ -338,13 +495,25 @@ function AdminPlayers() {
                           flexShrink: 0,
                         }}
                       >
-                        {player.name[0]?.toUpperCase() || "?"}
+                        {player.name?.[0]?.toUpperCase() || "?"}
                       </div>
 
                       {/* INFO */}
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-                          <strong style={{ fontSize: "15px", color: "#fff" }}>{player.name}</strong>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "10px",
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <strong
+                            style={{ fontSize: "15px", color: "#fff" }}
+                          >
+                            {player.name}
+                          </strong>
+
                           <span
                             style={{
                               fontSize: "10px",
@@ -360,8 +529,15 @@ function AdminPlayers() {
                             {rank.label}
                           </span>
                         </div>
-                        <div style={{ fontSize: "12px", color: "#888", marginTop: "2px" }}>
-                          {player.phone}
+
+                        <div
+                          style={{
+                            fontSize: "12px",
+                            color: "#888",
+                            marginTop: "2px",
+                          }}
+                        >
+                          {player.phone || "No phone"}
                           {player.email && ` · ${player.email}`}
                         </div>
                       </div>
@@ -383,12 +559,16 @@ function AdminPlayers() {
                         }}
                       >
                         <Award size={15} />
-                        {player.points} PTS
+                        {player.points || 0} PTS
                       </div>
 
                       {/* EXPAND */}
                       <div style={{ color: "#666", flexShrink: 0 }}>
-                        {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                        {isExpanded ? (
+                          <ChevronUp size={18} />
+                        ) : (
+                          <ChevronDown size={18} />
+                        )}
                       </div>
                     </div>
 
@@ -420,11 +600,30 @@ function AdminPlayers() {
                             }}
                           >
                             <Phone size={16} color="#ef4444" />
+
                             <div>
-                              <div style={{ fontSize: "10px", color: "#888", letterSpacing: "1px" }}>PHONE</div>
-                              <div style={{ fontSize: "13px", color: "#fff", fontWeight: 600 }}>{player.phone}</div>
+                              <div
+                                style={{
+                                  fontSize: "10px",
+                                  color: "#888",
+                                  letterSpacing: "1px",
+                                }}
+                              >
+                                PHONE
+                              </div>
+
+                              <div
+                                style={{
+                                  fontSize: "13px",
+                                  color: "#fff",
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {player.phone || "Not provided"}
+                              </div>
                             </div>
                           </div>
+
                           <div
                             style={{
                               display: "flex",
@@ -436,9 +635,25 @@ function AdminPlayers() {
                             }}
                           >
                             <Mail size={16} color="#ef4444" />
+
                             <div>
-                              <div style={{ fontSize: "10px", color: "#888", letterSpacing: "1px" }}>EMAIL</div>
-                              <div style={{ fontSize: "13px", color: "#fff", fontWeight: 600 }}>
+                              <div
+                                style={{
+                                  fontSize: "10px",
+                                  color: "#888",
+                                  letterSpacing: "1px",
+                                }}
+                              >
+                                EMAIL
+                              </div>
+
+                              <div
+                                style={{
+                                  fontSize: "13px",
+                                  color: "#fff",
+                                  fontWeight: 600,
+                                }}
+                              >
                                 {player.email || "Not provided"}
                               </div>
                             </div>
@@ -460,15 +675,29 @@ function AdminPlayers() {
                           }}
                         >
                           <div style={{ flex: 1, minWidth: "160px" }}>
-                            <div style={{ fontSize: "11px", color: "#888", letterSpacing: "1px", marginBottom: "6px" }}>
+                            <div
+                              style={{
+                                fontSize: "11px",
+                                color: "#888",
+                                letterSpacing: "1px",
+                                marginBottom: "6px",
+                              }}
+                            >
                               ADJUST POINTS
                             </div>
+
                             <input
                               type="number"
                               min="1"
                               placeholder="Enter amount"
                               value={customValue}
-                              onChange={(e) => handleInputChange(player.id, e.target.value)}
+                              onChange={(e) =>
+                                handleInputChange(
+                                  player.id,
+                                  e.target.value
+                                )
+                              }
+                              onClick={(e) => e.stopPropagation()}
                               disabled={isUpdating}
                               style={{
                                 background: "rgba(0,0,0,0.3)",
@@ -482,37 +711,90 @@ function AdminPlayers() {
                               }}
                             />
                           </div>
-                          <div style={{ display: "flex", gap: "8px", alignItems: "flex-end", paddingTop: "18px" }}>
+
+                          <div
+                            style={{
+                              display: "flex",
+                              gap: "8px",
+                              alignItems: "flex-end",
+                              paddingTop: "18px",
+                            }}
+                          >
                             <button
                               className="confirm-button"
-                              onClick={() => updatePointsCustom(player, "add")}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                updatePointsCustom(player, "add");
+                              }}
                               disabled={isUpdating || !customValue}
-                              style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 16px" }}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                padding: "8px 16px",
+                              }}
                             >
-                              {isUpdating ? <RefreshCw size={15} className="spin" /> : <PlusCircle size={15} />}
+                              {isUpdating ? (
+                                <RefreshCw size={15} className="spin" />
+                              ) : (
+                                <PlusCircle size={15} />
+                              )}
                               ADD
                             </button>
+
                             <button
                               className="reject-button"
-                              onClick={() => updatePointsCustom(player, "sub")}
-                              disabled={isUpdating || player.points <= 0 || !customValue}
-                              style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 16px" }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                updatePointsCustom(player, "sub");
+                              }}
+                              disabled={
+                                isUpdating ||
+                                (player.points || 0) <= 0 ||
+                                !customValue
+                              }
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                padding: "8px 16px",
+                              }}
                             >
-                              {isUpdating ? <RefreshCw size={15} className="spin" /> : <MinusCircle size={15} />}
+                              {isUpdating ? (
+                                <RefreshCw size={15} className="spin" />
+                              ) : (
+                                <MinusCircle size={15} />
+                              )}
                               REMOVE
                             </button>
                           </div>
                         </div>
 
                         {/* DELETE */}
-                        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "flex-end",
+                          }}
+                        >
                           <button
                             className="delete-button"
-                            onClick={() => deletePlayer(player.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deletePlayer(player.id);
+                            }}
                             disabled={isUpdating}
-                            style={{ display: "flex", alignItems: "center", gap: "6px" }}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "6px",
+                            }}
                           >
-                            {isUpdating ? <RefreshCw size={15} className="spin" /> : <Trash2 size={15} />}
+                            {isUpdating ? (
+                              <RefreshCw size={15} className="spin" />
+                            ) : (
+                              <Trash2 size={15} />
+                            )}
                             DELETE PLAYER
                           </button>
                         </div>
